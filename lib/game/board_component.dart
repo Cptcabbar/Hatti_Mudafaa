@@ -36,6 +36,10 @@ class BoardComponent extends PositionComponent with TapCallbacks {
   BoardMetrics? _metrics;
   BoardProjection? _projection;
 
+  /// Bir kez üretilen sert zemin dokusu (çamur + benek + krater + ızgara +
+  /// hedef sektörleri). Eğim izdüşümüyle her kare projeksiyondan geçirilir.
+  Image? _groundImage;
+
   /// Tahtanın çizim alanındaki sol-üst köşesi (viewport pikseli).
   Offset _origin = Offset.zero;
   double _boardSide = 0;
@@ -61,7 +65,15 @@ class BoardComponent extends PositionComponent with TapCallbacks {
       boardSize: controller.state.config.boardSize,
       side: _boardSide,
     );
+    _bakeGround();
     _rebuildProjection();
+  }
+
+  @override
+  void onRemove() {
+    _groundImage?.dispose();
+    _groundImage = null;
+    super.onRemove();
   }
 
   void _rebuildProjection() {
@@ -125,118 +137,324 @@ class BoardComponent extends PositionComponent with TapCallbacks {
     final side = m.side;
     final cell = m.cell;
 
-    // --- Zemin ---
-    final ground = Path()
-      ..addPolygon([
-        _p(const Offset(0, 0)),
-        _p(Offset(side, 0)),
-        _p(Offset(side, side)),
-        _p(Offset(0, side)),
-      ], true);
+    // --- Zemin düzlemi: eğim izdüşümü altında çiz ---
+    canvas.save();
+    canvas.translate(_origin.dx, _origin.dy);
+    canvas.transform(proj.canvasTransform());
 
-    canvas.drawPath(ground, Paint()..color = const Color(0xFF6B6141));
-    // Uzak kenara doğru koyulaşan derinlik gölgesi.
-    canvas.drawPath(
-      ground,
+    final img = _groundImage;
+    if (img != null) {
+      canvas.drawImageRect(
+        img,
+        Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()),
+        Rect.fromLTWH(0, 0, side, side),
+        Paint()..filterQuality = FilterQuality.medium,
+      );
+    } else {
+      canvas.drawRect(
+        Rect.fromLTWH(0, 0, side, side),
+        Paint()..color = const Color(0xFF4E4231),
+      );
+    }
+
+    // Derinlik gölgesi — uzak kenar koyu, yakın kenar hafif vinyet.
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, side, side),
       Paint()
         ..shader = Gradient.linear(
-          _p(Offset(side / 2, 0)),
-          _p(Offset(side / 2, side)),
+          Offset(side / 2, 0),
+          Offset(side / 2, side),
           _tilt >= 0
-              ? const [Color(0x33000000), Color(0x00000000)]
-              : const [Color(0x00000000), Color(0x33000000)],
+              ? const [Color(0x55000000), Color(0x08000000)]
+              : const [Color(0x08000000), Color(0x55000000)],
         ),
     );
 
-    // Hedef satır tintleri (üst = P1 mavi, alt = P2 kırmızı).
-    canvas.drawPath(
-      Path()
-        ..addPolygon([
-          _p(const Offset(0, 0)),
-          _p(Offset(side, 0)),
-          _p(Offset(side, cell)),
-          _p(Offset(0, cell)),
-        ], true),
-      Paint()..color = const Color(0x333E6E9E),
-    );
-    canvas.drawPath(
-      Path()
-        ..addPolygon([
-          _p(Offset(0, side - cell)),
-          _p(Offset(side, side - cell)),
-          _p(Offset(side, side)),
-          _p(Offset(0, side)),
-        ], true),
-      Paint()..color = const Color(0x33A2433B),
-    );
-
-    // Izgara.
-    final grid = Paint()
-      ..color = const Color(0xFF574F35)
-      ..strokeWidth = 1.5;
-    for (var i = 0; i <= m.boardSize; i++) {
-      canvas.drawLine(_p(Offset(i * cell, 0)), _p(Offset(i * cell, side)), grid);
-      canvas.drawLine(_p(Offset(0, i * cell)), _p(Offset(side, i * cell)), grid);
-    }
-
-    // Yasal hamle vurguları (move modu).
+    // Yasal hamle vurguları.
     if (controller.mode == InteractionMode.move && !state.isOver) {
-      final hl = Paint()..color = const Color(0x5548C774);
+      final fill = Paint()..color = const Color(0x4048C774);
+      final ring = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..color = const Color(0x9948C774);
       for (final sq in controller.legalStepTargets) {
         final g = m.cellCenter(sq);
-        canvas.drawCircle(_p(g), cell * 0.16 * proj.scaleAt(g), hl);
+        canvas.drawCircle(g, cell * 0.17, fill);
+        canvas.drawCircle(g, cell * 0.17, ring);
       }
     }
 
-    // Yerleştirilmiş engeller.
+    // Yerleştirilmiş engeller + önizleme (zemin düzleminde).
     for (final b in state.barriers) {
-      _drawBarrier(
-        canvas,
-        m,
-        proj,
-        b,
-        b.isWire ? const Color(0xFF2E2A20) : const Color(0xFFE0A72E),
-      );
+      _drawBarrierFlat(canvas, m, b, preview: false, ok: true);
     }
-
-    // Engel önizlemesi.
     final preview = controller.preview;
     if (preview != null) {
-      final ok = controller.canConfirmPreview;
-      _drawBarrier(
-        canvas,
-        m,
-        proj,
-        preview,
-        ok ? const Color(0xAA48C774) : const Color(0xAAE5484D),
-      );
+      _drawBarrierFlat(canvas, m, preview,
+          preview: true, ok: controller.canConfirmPreview);
     }
 
-    // Piyonlar (billboard + zemin gölgesi).
+    canvas.restore();
+
+    // --- Piyonlar: billboard (ekran uzayı) ---
     _drawPawn(canvas, m, proj, state.pawnP1, const Color(0xFF3E6E9E),
         active: !state.isOver && state.turn == Player.p1);
     _drawPawn(canvas, m, proj, state.pawnP2, const Color(0xFFA2433B),
         active: !state.isOver && state.turn == Player.p2);
   }
 
-  void _drawBarrier(
+  // ---------------------------------------------------------------------------
+  // Zemin dokusu (bir kez üretilir)
+  // ---------------------------------------------------------------------------
+
+  void _bakeGround() {
+    final m = _metrics;
+    if (m == null || _boardSide <= 0) return;
+    _groundImage?.dispose();
+
+    const scale = 2.0;
+    final n = m.boardSize;
+    final side = _boardSide;
+    final cell = m.cell;
+    final px = (side * scale).ceil();
+
+    final recorder = PictureRecorder();
+    final c = Canvas(recorder);
+    c.scale(scale);
+    final rnd = math.Random(20260906);
+
+    // 1) Islak toprak taban degradesi.
+    c.drawRect(
+      Rect.fromLTWH(0, 0, side, side),
+      Paint()
+        ..shader = Gradient.linear(
+          Offset.zero,
+          Offset(0, side),
+          const [Color(0xFF645644), Color(0xFF4A3E2E)],
+        ),
+    );
+
+    // 2a) Geniş açık kuru/kabarık alanlar (büyük tonal dalga).
+    for (var i = 0; i < 12; i++) {
+      c.drawCircle(
+        Offset(rnd.nextDouble() * side, rnd.nextDouble() * side),
+        cell * (0.7 + rnd.nextDouble() * 1.4),
+        Paint()
+          ..color = Color.fromRGBO(146, 128, 96, 0.05 + rnd.nextDouble() * 0.06)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 22),
+      );
+    }
+    // 2b) Geniş koyu çamur birikintileri.
+    for (var i = 0; i < 40; i++) {
+      c.drawCircle(
+        Offset(rnd.nextDouble() * side, rnd.nextDouble() * side),
+        cell * (0.25 + rnd.nextDouble() * 0.9),
+        Paint()
+          ..color = Color.fromRGBO(26, 20, 13, 0.07 + rnd.nextDouble() * 0.11)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
+      );
+    }
+    // Açık kuru toz smear'ları.
+    for (var i = 0; i < 18; i++) {
+      c
+        ..save()
+        ..translate(rnd.nextDouble() * side, rnd.nextDouble() * side)
+        ..rotate((rnd.nextDouble() - 0.5) * math.pi)
+        ..drawOval(
+          Rect.fromCenter(
+            center: Offset.zero,
+            width: cell * (0.6 + rnd.nextDouble() * 1.6),
+            height: cell * (0.10 + rnd.nextDouble() * 0.22),
+          ),
+          Paint()
+            ..color =
+                Color.fromRGBO(154, 136, 102, 0.04 + rnd.nextDouble() * 0.05)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9),
+        )
+        ..restore();
+    }
+
+    // 3) Grain — ufak taş / is benekleri.
+    for (var i = 0; i < 2400; i++) {
+      final dark = rnd.nextInt(3) != 0;
+      c.drawCircle(
+        Offset(rnd.nextDouble() * side, rnd.nextDouble() * side),
+        0.6 + rnd.nextDouble() * 1.7,
+        Paint()
+          ..color = dark
+              ? Color.fromRGBO(18, 14, 9, 0.06 + rnd.nextDouble() * 0.20)
+              : Color.fromRGBO(158, 142, 110, 0.05 + rnd.nextDouble() * 0.12),
+      );
+    }
+
+    // 4) Kraterler (sabit yerleşim) — düzensiz koyu ezikler, geometrik halka yok.
+    final cr = math.Random(31);
+    for (var i = 0; i < 5; i++) {
+      final p = Offset(
+        side * (0.14 + 0.72 * cr.nextDouble()),
+        side * (0.14 + 0.72 * cr.nextDouble()),
+      );
+      final rad = cell * (0.5 + cr.nextDouble() * 0.6);
+      for (var k = 0; k < 3; k++) {
+        final off = Offset(
+          (cr.nextDouble() - 0.5) * rad * 0.7,
+          (cr.nextDouble() - 0.5) * rad * 0.7,
+        );
+        c.drawCircle(
+          p + off,
+          rad * (0.55 + cr.nextDouble() * 0.5),
+          Paint()
+            ..color = Color.fromRGBO(15, 10, 6, 0.14 + cr.nextDouble() * 0.12)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
+        );
+      }
+      // Saçılmış toprak (kraterin bir yanında hafif açık).
+      c.drawCircle(
+        p + Offset(rad * 0.6, -rad * 0.5),
+        rad * 0.7,
+        Paint()
+          ..color = const Color(0x14A08A64)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9),
+      );
+    }
+
+    // 5) Hedef sektörleri (üst = mavi P1 hedefi, alt = kırmızı P2 hedefi).
+    _bakeSector(
+        c, Rect.fromLTWH(0, 0, side, cell), const Color(0xFF3E6E9E), atTop: true);
+    _bakeSector(c, Rect.fromLTWH(0, side - cell, side, cell),
+        const Color(0xFFA2433B),
+        atTop: false);
+
+    // 6) Yıpranmış ızgara.
+    for (var i = 0; i <= n; i++) {
+      _wornGridLine(c, Offset(i * cell, 0), Offset(i * cell, side), rnd);
+      _wornGridLine(c, Offset(0, i * cell), Offset(side, i * cell), rnd);
+    }
+
+    // 7) İç sınır — parapet (siper duvarı) gölgesi + kenar dudağı ışığı.
+    c
+      ..drawRect(
+        Rect.fromLTWH(0, 0, side, side).deflate(cell * 0.04),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = cell * 0.14
+          ..color = const Color(0x4D000000)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+      )
+      ..drawRect(
+        Rect.fromLTWH(0, 0, side, side),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..color = const Color(0x59140D08),
+      );
+    // Üst ve alt siper kenarında hafif yakalanan ışık.
+    for (final atTop in const [true, false]) {
+      final y = atTop ? 0.0 : side;
+      c.drawRect(
+        Rect.fromLTWH(0, y - (atTop ? 0 : cell * 0.5), side, cell * 0.5),
+        Paint()
+          ..shader = Gradient.linear(
+            Offset(0, atTop ? 0 : side),
+            Offset(0, atTop ? cell * 0.5 : side - cell * 0.5),
+            const [Color(0x1FA79068), Color(0x00A79068)],
+          ),
+      );
+    }
+
+    final picture = recorder.endRecording();
+    _groundImage = picture.toImageSync(px, px);
+    picture.dispose();
+  }
+
+  void _bakeSector(Canvas c, Rect r, Color color, {required bool atTop}) {
+    c.drawRect(r, Paint()..color = color.withValues(alpha: 0.17));
+
+    // Çapraz tehlike şeritleri.
+    c
+      ..save()
+      ..clipRect(r);
+    final stripe = Paint()
+      ..color = color.withValues(alpha: 0.09)
+      ..strokeWidth = r.height * 0.34;
+    for (var x = -r.height; x < r.width + r.height; x += r.height * 0.9) {
+      c.drawLine(
+        Offset(r.left + x, r.top),
+        Offset(r.left + x + r.height, r.bottom),
+        stripe,
+      );
+    }
+    c.restore();
+
+    // Hedef kenarında şablon (stencil) kesikli çizgi.
+    final y = atTop ? r.bottom - 2.5 : r.top + 2.5;
+    final dash = Paint()
+      ..color = color.withValues(alpha: 0.7)
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.square;
+    const segs = 26;
+    for (var i = 0; i < segs; i += 2) {
+      final x0 = r.left + r.width * i / segs;
+      c.drawLine(Offset(x0, y), Offset(x0 + r.width / segs * 0.7, y), dash);
+    }
+  }
+
+  void _wornGridLine(Canvas c, Offset a, Offset b, math.Random rnd) {
+    const segs = 12;
+    final dark = Paint()
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 2.2
+      ..color = const Color(0xA32A2118);
+    final lip = Paint()
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 1
+      ..color = const Color(0x30837155);
+    for (var s = 0; s < segs; s++) {
+      if (rnd.nextDouble() < 0.10) continue;
+      Offset j() => Offset(
+            (rnd.nextDouble() - 0.5) * 2.2,
+            (rnd.nextDouble() - 0.5) * 2.2,
+          );
+      final p0 = Offset.lerp(a, b, s / segs)! + j();
+      final p1 = Offset.lerp(a, b, (s + 1) / segs)! + j();
+      c
+        ..drawLine(p0, p1, dark)
+        ..drawLine(p0.translate(-0.7, -0.7), p1.translate(-0.7, -0.7), lip);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Dinamik katmanlar
+  // ---------------------------------------------------------------------------
+
+  void _drawBarrierFlat(
     Canvas canvas,
     BoardMetrics m,
-    BoardProjection proj,
-    Barrier b,
-    Color color,
-  ) {
+    Barrier b, {
+    required bool preview,
+    required bool ok,
+  }) {
     final (a, z) = m.barrierLine(b);
-    final mid = Offset.lerp(a, z, 0.5)!;
-    final sc = proj.scaleAt(mid);
-    canvas.drawLine(
-      _p(a),
-      _p(z),
-      Paint()
-        ..strokeCap = StrokeCap.round
-        ..strokeWidth = m.cell * 0.14 * sc
-        ..color = color,
-    );
+    final w = m.cell * 0.16;
+
+    final base = Paint()
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = w
+      ..color = const Color(0xCC1A140D);
+    final Color topColor;
+    if (preview) {
+      topColor = ok ? const Color(0xEE5ED17A) : const Color(0xEEE5615C);
+    } else {
+      topColor = b.isWire ? const Color(0xFF2A2620) : const Color(0xFFD79A2B);
+    }
+    final top = Paint()
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = w * 0.58
+      ..color = topColor;
+
+    canvas
+      ..drawLine(a, z, base)
+      ..drawLine(a, z, top);
   }
 
   void _drawPawn(
@@ -262,7 +480,7 @@ class BoardComponent extends PositionComponent with TapCallbacks {
         height: r * 2.1 * (vsc / sc).clamp(0.25, 1.0) * 0.7,
       ),
       Paint()
-        ..color = const Color(0x55000000)
+        ..color = const Color(0x66000000)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
     );
 
@@ -279,14 +497,15 @@ class BoardComponent extends PositionComponent with TapCallbacks {
       );
     }
 
-    canvas.drawCircle(center, r, Paint()..color = color);
-    canvas.drawCircle(
-      center,
-      r,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2
-        ..color = const Color(0xFF14110D),
-    );
+    canvas
+      ..drawCircle(center, r, Paint()..color = color)
+      ..drawCircle(
+        center,
+        r,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..color = const Color(0xFF14110D),
+      );
   }
 }

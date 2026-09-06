@@ -60,4 +60,25 @@ void main() {
     expect(near, greaterThan(far));
     expect(far, greaterThan(0));
   });
+
+  test('canvasTransform matrisi project ile aynı sonucu verir', () {
+    for (final tilt in const [-0.7, 0.0, 0.4, 1.0]) {
+      final p = BoardProjection(side: 640, tilt: tilt);
+      final m = p.canvasTransform(); // sütun-öncelikli 4x4
+      for (final flat in const [
+        Offset(0, 0),
+        Offset(640, 0),
+        Offset(200, 500),
+        Offset(640, 640),
+      ]) {
+        final x = flat.dx, y = flat.dy;
+        final xp = m[0] * x + m[4] * y + m[12];
+        final yp = m[1] * x + m[5] * y + m[13];
+        final w = m[3] * x + m[7] * y + m[15];
+        final viaMatrix = Offset(xp / w, yp / w);
+        expect(viaMatrix, closeOffset(p.project(flat), eps: 0.01),
+            reason: 'tilt=$tilt flat=$flat');
+      }
+    }
+  });
 }
