@@ -24,8 +24,9 @@
 
 ## 2. İsim / marka taraması
 
-**Seçilen isim:** **"Hattı Müdafaa"** (2026-09-06). Latin harfli varyant / uluslararası
-mağaza adı kararı: _beklemede_ (ör. "Hatti Mudafaa" veya İngilizce bir başlık).
+**Seçilen isim:** TR mağaza **"Hattı Müdafaa"** (2026-09-06); uluslararası mağazalar için
+ayrı **İngilizce başlık** kullanılacak — _seçilecek_. Adaylar: "Trench Line", "Hold the
+Line", "No Man's Land", "Frontline". Hepsi aşağıdaki taramaya dahil edilecek.
 
 **Riskler / notlar:**
 - "Hattı müdafaa" yaygın bir Türkçe askerî/tarihî tabirdir (Atatürk'ün "Hattı müdafaa
@@ -122,4 +123,7 @@ mağaza adı kararı: _beklemede_ (ör. "Hatti Mudafaa" veya İngilizce bir baş
 | 2026-09-06 | Mekanik Quoridor-türevi kullanılacak | Mekanik/kural telifle korunmuyor |
 | 2026-09-06 | Tahta 7×7 (9×9 değil) | Bilinçli ayrışma + mobil oynanış |
 | 2026-09-06 | Engel: 1-seg mayın + 2-seg dikenli tel | Askeri tema + orijinalden ayrışma |
-| 2026-09-06 | İsim: "Hattı Müdafaa" | Askeri tema; Quoridor ile bağı yok. Marka taraması ve Latin/İngilizce ad kararı bekliyor |
+| 2026-09-06 | İsim: "Hattı Müdafaa" (TR) + ayrı İngilizce başlık (uluslararası) | Askeri tema; Quoridor ile bağı yok. Marka taraması ve İngilizce ad seçimi bekliyor |
+| 2026-09-06 | Tema: jenerik askeri — gerçek savaş / ordu / ülke / amblem / kişi temsili YOK | Hassasiyet + IP riski en düşük; `docs/theme-bible.md` |
+| 2026-09-06 | Görsel stil: low-poly render → 2B; ilk tema "Cephe" | — |
+| 2026-09-06 | Hedef yaş: 12+ / Teen | Hafif tematik şiddet; kan/ölüm yok. AdMob kişiselleştirilmiş reklam serbest |

@@ -49,7 +49,8 @@ Kilitlenen kararlar: Flutter+Flame · Supabase · Quoridor-türevi mekanik + tam
 - [x] Engel kuralları: çakışma yasak · tel+tel dik kesişme yasak · mayın serbest kesişir (bkz. `docs/rules.md` §5.3)
 - [x] Çapraz atlama: **koşullu** (yalnızca düz atlama kapalıyken)
 - [ ] Online MVP'de tur zaman sınırı (Faz 4)
-- [ ] Hedef yaş: **12+/Teen** mi (kişiselleştirilmiş reklam serbest) yoksa herkese açık (AdMob Families kuralları)
+- [x] Hedef yaş: **12+ / Teen** — hafif tematik şiddet, kan/ölüm yok; kişiselleştirilmiş reklam serbest
+- [x] Tema: **jenerik askeri** (gerçek savaş/ordu/ülke temsili yok) · görsel stil **low-poly render → 2B** · uluslararası ad **TR + İngilizce başlık**
 
 ---
 
@@ -58,17 +59,18 @@ Kilitlenen kararlar: Flutter+Flame · Supabase · Quoridor-türevi mekanik + tam
 - [x] **⚖️ `docs/legal-clearance.md` oluşturuldu** — kayıt defteri şablonu hazır; tablolar tamamlandıkça doldurulacak
 - [x] **⚖️ `docs/rules.md` sıfırdan, kendi cümlelerimizle yazıldı** — v1 kesinleşti (bağımsız yazım, kendi terminolojimiz, 7×7, iki tip engel, `GameConfig`)
 - [x] **⚖️ Oyun ismi belirlendi** — **"Hattı Müdafaa"** (askeri tema; "Quoridor" ile hiçbir bağı yok). Uluslararası pazar için Latin/İngilizce ad kararı ve marka taraması ayrı maddelerde.
-- [ ] **⚖️ İsim marka taraması yapıldı** — TÜRKPATENT, EUIPO eSearch, USPTO TESS, WIPO Global Brand Database + Google Play / App Store isim araması + genel web; Nice sınıfları **9 (yazılım)** ve **28 (oyunlar)**; sonuç ekran görüntüleriyle `legal-clearance.md`'ye
+- [ ] **⚖️ İngilizce başlık seçildi** — TR mağazada "Hattı Müdafaa", uluslararası mağazalarda İngilizce ad (aday: Trench Line / Hold the Line / No Man's Land / Frontline). Marka taramasına dahil.
+- [ ] **⚖️ İsim marka taraması yapıldı** — "Hattı Müdafaa" + seçilen İngilizce başlık; TÜRKPATENT, EUIPO eSearch, USPTO TESS, WIPO Global Brand Database + Google Play / App Store isim araması + genel web; Nice sınıfları **9 (yazılım)** ve **28 (oyunlar)**; sonuç ekran görüntüleriyle `legal-clearance.md`'ye
 - [ ] **⚖️ (Önerilir) Marka başvurusu değerlendirildi** — seçilen isim için sınıf 9 + 28; en azından "başvurulacak" kararı ve bütçesi netleşti
 - [ ] **⚖️ Alan adı + sosyal medya + geliştirici hesap adları** özgün isimle rezerve edildi
 - [x] Flutter projesi + `packages/game_core` + `packages/game_ai` (saf Dart) iskeleti kuruldu — `game_core`'da GameConfig/Square/Edge/Barrier/Move/BoardState + 23 test geçiyor
 - [x] CI kuruldu (`.github/workflows/ci.yml` — `dart analyze` + `dart test` + `flutter test`), strict lint kuralları
 - [x] Klasör iskeleti (`lib/game`, `lib/ui`, `lib/online`, `lib/ads`, `lib/theme`) — her biri README'li
 - [x] Git deposu başlatıldı, ilk commit (`main` dalı)
-- [ ] **⚖️ Tema bible taslağı** — askeri/savaş alanı; renk paleti, piyon (asker), engel görselleri, arka plan; **Gigamic'in görsel dili referans alınmadı**, moodboard'da Quoridor görseli yok; tüm ilham kaynakları serbest lisanslı
-- [ ] **⚖️ Görsel varlık kaynak politikası belirlendi** — yalnızca özgün çizim / CC0 / satın alınmış asset lisansı / yazılı sipariş sözleşmesi; her varlığın kaydı tutulacak
+- [x] **⚖️ Tema bible taslağı** — `docs/theme-bible.md`: jenerik askeri (gerçek savaş/ordu/ülke temsili yok), low-poly render → 2B, palet + öğeler + üretim hattı; **Gigamic'in görsel dili referans alınmadı**
+- [ ] **⚖️ Görsel varlık kaynak politikası belirlendi** — yalnızca özgün çizim / CC0 / satın alınmış asset lisansı / yazılı sipariş sözleşmesi; her varlığın kaydı tutulacak (kısmen: theme-bible §7 + legal-clearance §3)
 - [ ] **⚖️ Font lisansları kontrol edildi** — ticari + uygulamaya gömülü kullanım izinli (SIL OFL / Apache / satın alma); kayıt `legal-clearance.md`'ye
-- [ ] Hedef yaş derecelendirmesi kararı verildi (reklam kurallarını belirler)
+- [x] Hedef yaş derecelendirmesi kararı verildi — **12+ / Teen** (hafif tematik şiddet, kan/ölüm yok; kişiselleştirilmiş reklam serbest)
 - [ ] **⚖️ Türkçe + İngilizce yerelleştirme** altyapısı (`intl` / ARB); string'lerde "Quoridor" yasağı lint/gözden geçirme kuralı
 
 ---
