@@ -9,7 +9,7 @@ class IllegalMoveException implements Exception {
   String toString() => 'IllegalMoveException: $reason';
 }
 
-/// Kapalı Yol kural motoru — tek doğruluk kaynağı `docs/rules.md`.
+/// Hattı Müdafaa kural motoru — tek doğruluk kaynağı `docs/rules.md`.
 ///
 /// **Faz 1'de uygulanacak.** Yerel oyun, `game_ai` ve online doğrulama hep
 /// buradan geçer.

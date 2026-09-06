@@ -1,4 +1,4 @@
-# Kapalı Yol — Yasal Uyum Kayıt Defteri (legal clearance)
+# Hattı Müdafaa — Yasal Uyum Kayıt Defteri (legal clearance)
 
 > Bu dosya, projenin telif ve marka açısından temiz olduğunu **kanıtlayan kayıtların**
 > arşividir. ROADMAP'teki her `⚖️` maddesi tamamlandığında ilgili kanıt (ekran görüntüsü
@@ -24,11 +24,19 @@
 
 ## 2. İsim / marka taraması
 
-**Aday isim(ler):** _(doldurulacak — geçici kod adı: "Kapalı Yol")_
+**Seçilen isim:** **"Hattı Müdafaa"** (2026-09-06). Latin harfli varyant / uluslararası
+mağaza adı kararı: _beklemede_ (ör. "Hatti Mudafaa" veya İngilizce bir başlık).
+
+**Riskler / notlar:**
+- "Hattı müdafaa" yaygın bir Türkçe askerî/tarihî tabirdir (Atatürk'ün "Hattı müdafaa
+  yoktur, sathı müdafaa vardır" sözünden bilinir). Tanımlayıcı/yaygın ibareler **zayıf
+  marka** olabilir (ayırt edicilik düşük) ama mevcut bir tescille **çakışma olasılığı da
+  düşüktür**. Oyun + stilize logo bileşimi ayırt ediciliği artırır.
+- Tabirin kendisi kamuya maldır; kimsenin tekelinde değildir.
 
 | Kaynak | Tarih | Sorgu | Sonuç | Kanıt |
 |---|---|---|---|---|
-| TÜRKPATENT marka araması | | | | |
+| TÜRKPATENT marka araması | | "hattı müdafaa", "hatti mudafaa" | | |
 | EUIPO eSearch plus | | | | |
 | USPTO TESS | | | | |
 | WIPO Global Brand Database | | | | |
@@ -40,6 +48,11 @@
 **Nice sınıfları hedefi:** 9 (bilgisayar oyunu yazılımı), 28 (oyunlar ve oyuncaklar).
 
 **Değerlendirme / karar:** _(temiz mi? başvurulacak mı? bütçe?)_
+
+**Uygulama kimlikleri (kalıcı — yayından sonra değişmez):**
+- Android `applicationId`: `com.hattimudafaa.hatti_mudafaa`
+- iOS `PRODUCT_BUNDLE_IDENTIFIER`: `com.hattimudafaa.hattiMudafaa`
+- Dart paket adı: `hatti_mudafaa`
 
 ---
 
@@ -106,7 +119,7 @@
 
 | Tarih | Karar | Gerekçe |
 |---|---|---|
-| | Mekanik Quoridor-türevi kullanılacak | Mekanik/kural telifle korunmuyor |
-| | Tahta 7×7 (9×9 değil) | Bilinçli ayrışma + mobil oynanış |
-| | Engel: 1-seg mayın + 2-seg dikenli tel | Askeri tema + orijinalden ayrışma |
-| | İsim: TBD | Marka taraması sonrası |
+| 2026-09-06 | Mekanik Quoridor-türevi kullanılacak | Mekanik/kural telifle korunmuyor |
+| 2026-09-06 | Tahta 7×7 (9×9 değil) | Bilinçli ayrışma + mobil oynanış |
+| 2026-09-06 | Engel: 1-seg mayın + 2-seg dikenli tel | Askeri tema + orijinalden ayrışma |
+| 2026-09-06 | İsim: "Hattı Müdafaa" | Askeri tema; Quoridor ile bağı yok. Marka taraması ve Latin/İngilizce ad kararı bekliyor |

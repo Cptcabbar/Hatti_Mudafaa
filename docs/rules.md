@@ -1,4 +1,4 @@
-# Kapalı Yol — Oyun Kuralları Spesifikasyonu (canonical)
+# Hattı Müdafaa — Oyun Kuralları Spesifikasyonu (canonical)
 
 > **Bu belge sıfırdan, kendi ifademizle yazılmıştır.** Hiçbir ticari oyunun kural kitapçığı
 > metni, örnekleri veya diyagram anlatımı kaynak alınmamıştır. Terminoloji bu projeye özgüdür.

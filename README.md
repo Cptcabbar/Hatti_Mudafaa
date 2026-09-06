@@ -1,10 +1,11 @@
-# Kapalı Yol
+# Hattı Müdafaa
 
 Sıra tabanlı strateji oyunu — mayınlı bir savaş alanında askerini karşı kenara
 ulaştır. Quoridor mekaniğinden esinlenen, kendi temasına ve kurallarına sahip
 özgün bir yapım. Android + iOS (Flutter + Flame).
 
-> **İsim geçicidir** — nihai isim marka taramasıyla belirlenecek (`docs/legal-clearance.md`).
+> Marka taraması hâlâ yapılacak (`docs/legal-clearance.md`); uluslararası pazar için
+> Latin harfli / İngilizce ad kararı beklemede.
 
 ## Durum
 

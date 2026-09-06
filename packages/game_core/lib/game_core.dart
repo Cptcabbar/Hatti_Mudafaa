@@ -1,4 +1,4 @@
-/// Kapalı Yol kural motoru — saf Dart, Flutter bağımsız.
+/// Hattı Müdafaa kural motoru — saf Dart, Flutter bağımsız.
 ///
 /// Tek doğruluk kaynağı: `docs/rules.md`. Yerel oyun, yapay zeka ve online
 /// doğrulama bu paketi paylaşır.

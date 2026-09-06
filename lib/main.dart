@@ -3,18 +3,18 @@ import 'package:flutter/material.dart';
 import 'ui/home_screen.dart';
 
 void main() {
-  runApp(const KapaliYolApp());
+  runApp(const HattiMudafaaApp());
 }
 
 /// Uygulama kökü. Faz 0 iskeleti — menü, oyun ekranı ve reklam yuvası
 /// sonraki fazlarda eklenecek (bkz. ROADMAP.md).
-class KapaliYolApp extends StatelessWidget {
-  const KapaliYolApp({super.key});
+class HattiMudafaaApp extends StatelessWidget {
+  const HattiMudafaaApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Kapalı Yol',
+      title: 'Hattı Müdafaa',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,

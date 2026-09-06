@@ -1,5 +1,5 @@
 name: game_ai
-description: Kapalı Yol yapay zeka rakip — negamax + alpha-beta, game_core üstünde. Faz 2.
+description: Hattı Müdafaa yapay zeka rakip — negamax + alpha-beta, game_core üstünde. Faz 2.
 version: 0.1.0
 publish_to: none
 

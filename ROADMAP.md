@@ -1,6 +1,6 @@
-# Kapalı Yol — Yol Haritası & İlerleme Takibi
+# Hattı Müdafaa — Yol Haritası & İlerleme Takibi
 
-> Proje kod adı: **Kapalı Yol** (geçici — nihai isim Faz 0'da marka taramasıyla belirlenecek).
+> Oyun ismi: **Hattı Müdafaa** (2026-09-06 belirlendi; marka taraması hâlâ Faz 0'da yapılacak).
 > Her adım tamamlandıkça kutucuklar (`[ ]` → `[x]`) buradan işaretlenir.
 > **⚖️ işaretli maddeler yasal uyum (telif/marka) gereğidir — atlanamaz, kanıtı `docs/legal-clearance.md`'ye kaydedilir.**
 
@@ -57,7 +57,7 @@ Kilitlenen kararlar: Flutter+Flame · Supabase · Quoridor-türevi mekanik + tam
 
 - [x] **⚖️ `docs/legal-clearance.md` oluşturuldu** — kayıt defteri şablonu hazır; tablolar tamamlandıkça doldurulacak
 - [x] **⚖️ `docs/rules.md` sıfırdan, kendi cümlelerimizle yazıldı** — v1 kesinleşti (bağımsız yazım, kendi terminolojimiz, 7×7, iki tip engel, `GameConfig`)
-- [ ] **⚖️ Oyun ismi belirlendi** — "Quoridor" ve türevleri (Quor-, koridor/corridor) kesinlikle dışında; askeri temayı destekleyen özgün isim
+- [x] **⚖️ Oyun ismi belirlendi** — **"Hattı Müdafaa"** (askeri tema; "Quoridor" ile hiçbir bağı yok). Uluslararası pazar için Latin/İngilizce ad kararı ve marka taraması ayrı maddelerde.
 - [ ] **⚖️ İsim marka taraması yapıldı** — TÜRKPATENT, EUIPO eSearch, USPTO TESS, WIPO Global Brand Database + Google Play / App Store isim araması + genel web; Nice sınıfları **9 (yazılım)** ve **28 (oyunlar)**; sonuç ekran görüntüleriyle `legal-clearance.md`'ye
 - [ ] **⚖️ (Önerilir) Marka başvurusu değerlendirildi** — seçilen isim için sınıf 9 + 28; en azından "başvurulacak" kararı ve bütçesi netleşti
 - [ ] **⚖️ Alan adı + sosyal medya + geliştirici hesap adları** özgün isimle rezerve edildi

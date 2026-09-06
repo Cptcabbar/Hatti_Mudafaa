@@ -14,7 +14,7 @@ class HomeScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              'KAPALI YOL',
+              'HATTI MÜDAFAA',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     letterSpacing: 4,
                     fontWeight: FontWeight.bold,
