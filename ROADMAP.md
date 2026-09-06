@@ -61,9 +61,10 @@ Kilitlenen kararlar: Flutter+Flame · Supabase · Quoridor-türevi mekanik + tam
 - [ ] **⚖️ İsim marka taraması yapıldı** — TÜRKPATENT, EUIPO eSearch, USPTO TESS, WIPO Global Brand Database + Google Play / App Store isim araması + genel web; Nice sınıfları **9 (yazılım)** ve **28 (oyunlar)**; sonuç ekran görüntüleriyle `legal-clearance.md`'ye
 - [ ] **⚖️ (Önerilir) Marka başvurusu değerlendirildi** — seçilen isim için sınıf 9 + 28; en azından "başvurulacak" kararı ve bütçesi netleşti
 - [ ] **⚖️ Alan adı + sosyal medya + geliştirici hesap adları** özgün isimle rezerve edildi
-- [ ] Flutter projesi + `packages/game_core` + `packages/game_ai` (saf Dart) iskeleti kuruldu
-- [ ] CI kuruldu (`flutter analyze` + `flutter test`), lint kuralları
-- [ ] Klasör iskeleti (`lib/game`, `lib/ui`, `lib/online`, `lib/ads`, `lib/theme`)
+- [x] Flutter projesi + `packages/game_core` + `packages/game_ai` (saf Dart) iskeleti kuruldu — `game_core`'da GameConfig/Square/Edge/Barrier/Move/BoardState + 23 test geçiyor
+- [x] CI kuruldu (`.github/workflows/ci.yml` — `dart analyze` + `dart test` + `flutter test`), strict lint kuralları
+- [x] Klasör iskeleti (`lib/game`, `lib/ui`, `lib/online`, `lib/ads`, `lib/theme`) — her biri README'li
+- [x] Git deposu başlatıldı, ilk commit (`main` dalı)
 - [ ] **⚖️ Tema bible taslağı** — askeri/savaş alanı; renk paleti, piyon (asker), engel görselleri, arka plan; **Gigamic'in görsel dili referans alınmadı**, moodboard'da Quoridor görseli yok; tüm ilham kaynakları serbest lisanslı
 - [ ] **⚖️ Görsel varlık kaynak politikası belirlendi** — yalnızca özgün çizim / CC0 / satın alınmış asset lisansı / yazılı sipariş sözleşmesi; her varlığın kaydı tutulacak
 - [ ] **⚖️ Font lisansları kontrol edildi** — ticari + uygulamaya gömülü kullanım izinli (SIL OFL / Apache / satın alma); kayıt `legal-clearance.md`'ye
