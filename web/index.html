@@ -18,21 +18,182 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Hattı Müdafaa — sıra tabanlı strateji oyunu">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="hatti_mudafaa">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Hattı Müdafaa">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Tarayıcı arayüzü rengi (beyaz parlama olmasın) -->
+  <meta name="theme-color" content="#0E0C08">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>hatti_mudafaa</title>
+  <title>Hattı Müdafaa</title>
   <link rel="manifest" href="manifest.json">
+
+  <!--
+    Açılış yükleyicisi (saf HTML/CSS). Flutter motoru inip ilk kareyi çizene
+    kadar beyaz ekran yerine bu görünür — uygulama içindeki LoadingView ile
+    aynı görsel dil: koyu degrade + siper silüeti + amber radar + "Yükleniyor".
+    `flutter-first-frame` olayında kaybolur.
+  -->
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: #0E0C08;
+    }
+
+    #boot {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483647;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background:
+        radial-gradient(130% 60% at 50% 120%, #241D11 0%, rgba(36, 29, 17, 0) 62%),
+        linear-gradient(#0E0C08 0%, #15110A 55%, #1B160F 100%);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu,
+        "Helvetica Neue", Arial, sans-serif;
+      transition: opacity .45s ease;
+    }
+
+    #boot.boot--done {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Katmanlı low-poly siper silüeti */
+    #boot::before,
+    #boot::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+    }
+
+    #boot::before {
+      height: 30%;
+      background: #201B10;
+      clip-path: polygon(0 55%, 12% 34%, 26% 50%, 40% 28%, 55% 46%,
+        70% 24%, 84% 44%, 100% 30%, 100% 100%, 0 100%);
+    }
+
+    #boot::after {
+      height: 21%;
+      background: #17130B;
+      clip-path: polygon(0 60%, 16% 38%, 32% 56%, 48% 33%, 63% 54%,
+        78% 36%, 92% 55%, 100% 46%, 100% 100%, 0 100%);
+    }
+
+    .radar {
+      position: relative;
+      width: 66px;
+      height: 66px;
+      border-radius: 50%;
+      border: 1px solid rgba(224, 167, 46, .28);
+      /* artı nişangah */
+      background:
+        linear-gradient(rgba(224, 167, 46, .16), rgba(224, 167, 46, .16))
+          center / 100% 1px no-repeat,
+        linear-gradient(rgba(224, 167, 46, .16), rgba(224, 167, 46, .16))
+          center / 1px 100% no-repeat;
+    }
+
+    /* iç menzil halkası */
+    .radar::before {
+      content: "";
+      position: absolute;
+      inset: 27%;
+      border-radius: 50%;
+      border: 1px solid rgba(224, 167, 46, .24);
+    }
+
+    /* merkez nokta */
+    .radar::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 4px;
+      height: 4px;
+      margin: -2px;
+      border-radius: 50%;
+      background: rgba(224, 167, 46, .9);
+    }
+
+    .radar__sweep {
+      position: absolute;
+      inset: -1px;
+      border-radius: 50%;
+      background: conic-gradient(from 0deg,
+        rgba(224, 167, 46, 0) 0deg 300deg,
+        rgba(224, 167, 46, .38) 360deg);
+      animation: radar-spin 1.4s linear infinite;
+    }
+
+    /* dönen tarama çizgisinin ön kenarı */
+    .radar__sweep::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: 50%;
+      width: 1.5px;
+      height: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(to top,
+        rgba(224, 167, 46, .12), rgba(224, 167, 46, .9));
+    }
+
+    @keyframes radar-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .radar__sweep { animation-duration: 4s; }
+    }
+
+    .boot__label {
+      margin-top: 22px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 4px;
+      color: #B7AE97;
+    }
+  </style>
 </head>
 <body>
+  <div id="boot">
+    <div class="radar"><div class="radar__sweep"></div></div>
+    <div class="boot__label">Yükleniyor</div>
+  </div>
+
+  <script>
+    (function () {
+      function dismissBoot() {
+        var el = document.getElementById("boot");
+        if (!el || el.classList.contains("boot--done")) return;
+        el.classList.add("boot--done");
+        window.setTimeout(function () {
+          if (el && el.parentNode) el.parentNode.removeChild(el);
+        }, 550);
+      }
+      window.addEventListener("flutter-first-frame", dismissBoot);
+      // Güvenlik ağı: olay hiç gelmezse yükleyici sonsuza dek kalmasın.
+      window.setTimeout(dismissBoot, 20000);
+    })();
+  </script>
+
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader

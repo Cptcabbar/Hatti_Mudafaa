@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Uygulama koyu temalı: açılış ekranı sistem temasından bağımsız koyu.
+         docs/theme-bible.md — zemin #14110D / #1E1B14; en koyu ton #0E0C08. -->
+    <color name="launch_background">#FF0E0C08</color>
+</resources>
