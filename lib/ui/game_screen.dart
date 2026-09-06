@@ -347,8 +347,12 @@ class _ModeChip extends StatelessWidget {
   }
 }
 
-/// Sağ kenarda dikey tur sayacı. Dolu çubuk aşağıdan azalır; saniye sayısı
-/// hem üstte (ters) hem altta (düz) yazılır ki iki taraftan da okunsun.
+/// Sağ kenarda dikey tur sayacı.
+///
+/// Dolu çubuk **sıradaki oyuncuya göre** azalır: P1 (düz) turunda ekranın
+/// altına doğru, P2 (180° dönük) turunda ekranın üstüne doğru — böylece her
+/// oyuncu için "aşağı akıyor" gibi görünür. Saniye sayısı iki uçta yazılır;
+/// aktif oyuncuya bakan uç vurgulu.
 class _TurnTimer extends StatelessWidget {
   const _TurnTimer({required this.controller});
 
@@ -358,6 +362,8 @@ class _TurnTimer extends StatelessWidget {
   Widget build(BuildContext context) {
     final fraction = controller.turnFraction;
     final seconds = controller.secondsLeft.ceil().clamp(0, 999);
+    final activeIsP2 = controller.turn == Player.p2 && !controller.isOver;
+
     final Color barColor;
     if (fraction > 0.5) {
       barColor = const Color(0xFF4CAF50);
@@ -367,14 +373,14 @@ class _TurnTimer extends StatelessWidget {
       barColor = const Color(0xFFE5484D);
     }
 
-    Widget label(int quarterTurns) => RotatedBox(
+    Widget label({required int quarterTurns, required bool active}) => RotatedBox(
           quarterTurns: quarterTurns,
           child: Text(
             '$seconds',
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w800,
-              fontSize: 13,
-              color: Colors.white,
+              fontSize: active ? 14 : 12,
+              color: Colors.white.withValues(alpha: active ? 1 : 0.4),
             ),
           ),
         );
@@ -387,7 +393,9 @@ class _TurnTimer extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             Align(
-              alignment: Alignment.bottomCenter,
+              // P2 turunda çubuk yukarıdan (P2'nin "aşağısı") azalır.
+              alignment:
+                  activeIsP2 ? Alignment.topCenter : Alignment.bottomCenter,
               child: FractionallySizedBox(
                 heightFactor: controller.isOver ? 0 : fraction,
                 widthFactor: 1,
@@ -399,7 +407,12 @@ class _TurnTimer extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.center,
-                children: [label(2), label(0)],
+                children: [
+                  // üstteki uç P2'ye bakar (ters)
+                  label(quarterTurns: 2, active: activeIsP2),
+                  // alttaki uç P1'e bakar (düz)
+                  label(quarterTurns: 0, active: !activeIsP2),
+                ],
               ),
             ),
           ],
