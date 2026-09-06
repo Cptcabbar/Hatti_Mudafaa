@@ -101,7 +101,7 @@ Kilitlenen kararlar: Flutter+Flame · Supabase · Quoridor-türevi mekanik + tam
 - [x] Kazanma diyaloğu + yeniden başlat
 
 ### Uygulama kabuğu
-- [x] Ana menü (Yerel oyna + süreli mod toggle) — tam Ayarlar ekranı sonra
+- [x] Ana menü — sade + görsel arka plan (degrade, hayalet tahta, low-poly siper hattı, mayınlar); Yerel oyna + süreli mod toggle. Tam Ayarlar ekranı sonra
 - [ ] Ayarlar ekranı (dil, ses)
 - [~] **⚖️ Tek tema** — placeholder renk paleti (`docs/theme-bible.md` §3); özgün varlıklar sonra
 - [~] Geri alma (undo) — çalışıyor; onay diyaloğu henüz yok
