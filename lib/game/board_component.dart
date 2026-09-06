@@ -184,6 +184,29 @@ class BoardComponent extends PositionComponent with TapCallbacks {
       }
     }
 
+    // Aktif askerin zemin nişanı (düzlemde — eğimle elips olur).
+    if (!state.isOver) {
+      final ac = m.cellCenter(state.pawnOf(state.turn));
+      final rr = cell * 0.40;
+      final reticle = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = cell * 0.035
+        ..color = const Color(0xCCEDE7D6);
+      canvas.drawCircle(ac, rr, reticle);
+      for (final d in const [
+        Offset(0, -1),
+        Offset(0, 1),
+        Offset(-1, 0),
+        Offset(1, 0),
+      ]) {
+        canvas.drawLine(
+          ac + Offset(d.dx * rr * 0.78, d.dy * rr * 0.78),
+          ac + Offset(d.dx * rr * 1.18, d.dy * rr * 1.18),
+          reticle,
+        );
+      }
+    }
+
     // Yerleştirilmiş engeller + önizleme (zemin düzleminde).
     for (final b in state.barriers) {
       _drawBarrierFlat(canvas, m, b, preview: false, ok: true);
@@ -196,11 +219,18 @@ class BoardComponent extends PositionComponent with TapCallbacks {
 
     canvas.restore();
 
-    // --- Piyonlar: billboard (ekran uzayı) ---
-    _drawPawn(canvas, m, proj, state.pawnP1, const Color(0xFF3E6E9E),
-        active: !state.isOver && state.turn == Player.p1);
-    _drawPawn(canvas, m, proj, state.pawnP2, const Color(0xFFA2433B),
-        active: !state.isOver && state.turn == Player.p2);
+    // --- Askerler: billboard (ekran uzayı) ---
+    // Uzaktaki önce (derinlik sıralaması eğime göre).
+    final p1Far = _tilt >= 0;
+    void drawP1() => _drawSoldier(canvas, m, proj, state.pawnP1, _Faction.p1);
+    void drawP2() => _drawSoldier(canvas, m, proj, state.pawnP2, _Faction.p2);
+    if (p1Far) {
+      drawP1();
+      drawP2();
+    } else {
+      drawP2();
+      drawP1();
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -457,55 +487,155 @@ class BoardComponent extends PositionComponent with TapCallbacks {
       ..drawLine(a, z, top);
   }
 
-  void _drawPawn(
+  /// "Miğferli mevzi" askeri: kazılı toprak taban + siper (brim) + miğfer
+  /// kubbesi. Billboard — ekran uzayında dik durur, derinliğe göre ölçeklenir.
+  void _drawSoldier(
     Canvas canvas,
     BoardMetrics m,
     BoardProjection proj,
     Square sq,
-    Color color, {
-    required bool active,
-  }) {
+    _Faction fac,
+  ) {
     final g = m.cellCenter(sq);
     final gs = _p(g);
     final sc = proj.scaleAt(g);
-    final vsc = proj.verticalScaleAt(g);
-    final r = m.cell * 0.30 * sc;
-    final lift = m.cell * 0.34 * sc;
+    final vRatio = (proj.verticalScaleAt(g) / sc).clamp(0.25, 1.0);
+    final r = m.cell * 0.36 * sc;
 
-    // Zemin gölgesi.
+    final groundY = gs.dy;
+    final brimY = groundY - r * 0.52;
+    final rh = r * 0.92;
+    final domeC = Offset(gs.dx, brimY - rh * 0.58);
+
+    // 1) Zemin gölgesi.
     canvas.drawOval(
       Rect.fromCenter(
         center: gs,
-        width: r * 2.1,
-        height: r * 2.1 * (vsc / sc).clamp(0.25, 1.0) * 0.7,
+        width: r * 2.7,
+        height: r * 2.7 * vRatio * 0.5,
       ),
       Paint()
-        ..color = const Color(0x66000000)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+        ..color = const Color(0x78000000)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
     );
 
-    final center = gs + Offset(0, -lift);
-
-    if (active) {
-      canvas.drawCircle(
-        center,
-        r * 1.28,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 3
-          ..color = const Color(0xFFEDE7D6),
-      );
-    }
-
+    // 2) Kazılı mevzi tabanı (toprak halkası).
+    final moundW = r * 2.35;
+    final moundH = r * 0.78 * vRatio + r * 0.3;
+    final moundRect = Rect.fromCenter(
+      center: Offset(gs.dx, groundY - r * 0.1),
+      width: moundW,
+      height: moundH,
+    );
     canvas
-      ..drawCircle(center, r, Paint()..color = color)
-      ..drawCircle(
-        center,
-        r,
+      ..drawOval(
+        moundRect.inflate(r * 0.08),
+        Paint()..color = const Color(0xFF241F17),
+      )
+      ..drawOval(moundRect, Paint()..color = const Color(0xFF4A3F2E))
+      ..drawArc(
+        moundRect,
+        math.pi * 1.12,
+        math.pi * 0.76,
+        false,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 2
-          ..color = const Color(0xFF14110D),
+          ..strokeWidth = r * 0.08
+          ..color = const Color(0x3AC9B48A),
       );
+
+    // 3) Miğfer kubbesi — tam daire (alt kısmı brim'in arkasında kalır).
+    final domeRect = Rect.fromCircle(center: domeC, radius: rh);
+    canvas
+      ..drawCircle(
+        domeC,
+        rh,
+        Paint()
+          ..shader = Gradient.radial(
+            domeC + Offset(-rh * 0.36, -rh * 0.42),
+            rh * 1.9,
+            [fac.lit, fac.mid, fac.dark],
+            const [0.0, 0.46, 1.0],
+          ),
+      )
+      // Sağ-alt gövde gölgesi.
+      ..drawArc(
+        domeRect.deflate(rh * 0.04),
+        -math.pi * 0.18,
+        math.pi * 0.62,
+        false,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = rh * 0.5
+          ..color = const Color(0x2E140D08),
+      )
+      // Üst-sol kenar ışığı.
+      ..drawArc(
+        domeRect.deflate(rh * 0.06),
+        math.pi * 1.16,
+        math.pi * 0.42,
+        false,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = rh * 0.13
+          ..strokeCap = StrokeCap.round
+          ..color = const Color(0x9EF3ECDC),
+      );
+
+    // 4) Siper (brim) — miğferin oturduğu disk; kubbenin alt kısmını örter.
+    final brimRect = Rect.fromCenter(
+      center: Offset(gs.dx, brimY),
+      width: rh * 2.5,
+      height: rh * 0.62 * vRatio + rh * 0.28,
+    );
+    canvas
+      ..drawOval(brimRect.shift(Offset(0, r * 0.04)),
+          Paint()..color = const Color(0x552A1C12))
+      ..drawOval(brimRect, Paint()..color = fac.brim)
+      ..drawArc(
+        brimRect,
+        math.pi * 1.1,
+        math.pi * 0.75,
+        false,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = r * 0.06
+          ..color = const Color(0x66F3ECDC),
+      );
+
+    // 5) İnce dış hat (yalnız görünen üst kubbe) — okunurluk.
+    canvas.drawArc(
+      domeRect,
+      math.pi * 0.96,
+      math.pi * 1.08,
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..color = const Color(0x3A120C07),
+    );
   }
+}
+
+/// Bir tarafın miğfer renk tonları (aynı form, farklı renk — [Faction] simetrik).
+class _Faction {
+  const _Faction(this.mid, this.lit, this.dark, this.brim);
+
+  final Color mid;
+  final Color lit;
+  final Color dark;
+  final Color brim;
+
+  static const p1 = _Faction(
+    Color(0xFF3E6E9E),
+    Color(0xFF6796C2),
+    Color(0xFF294C6E),
+    Color(0xFF32587E),
+  );
+  static const p2 = _Faction(
+    Color(0xFFA2433B),
+    Color(0xFFC96A5E),
+    Color(0xFF6F2C26),
+    Color(0xFF83352D),
+  );
 }
