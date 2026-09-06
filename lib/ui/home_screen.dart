@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:game_core/game_core.dart';
 
-/// Geçici ana ekran (Faz 0). Faz 1'de gerçek menü + yerel oyun gelecek.
+import 'game_screen.dart';
+
+/// Ana menü (Faz 1). Yapay zeka ve online sonraki fazlarda.
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -9,26 +11,41 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     const config = GameConfig.v1;
     return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'HATTI MÜDAFAA',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    letterSpacing: 4,
-                    fontWeight: FontWeight.bold,
+      body: SafeArea(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'HATTI MÜDAFAA',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      letterSpacing: 4,
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'sıra tabanlı strateji',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 40),
+              FilledButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (context) => const GameScreen(),
                   ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'sıra tabanlı strateji · Faz 0 iskeleti',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 24),
-            Text('Tahta: ${config.boardSize}×${config.boardSize}'),
-            Text('Cephanelik: ${config.armoryPoints} puan'),
-          ],
+                ),
+                icon: const Icon(Icons.people),
+                label: const Text('Yerel oyna (2 kişi)'),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Tahta ${config.boardSize}×${config.boardSize} · '
+                'cephanelik ${config.armoryPoints} puan',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
         ),
       ),
     );

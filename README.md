@@ -19,7 +19,11 @@ Faz 0 (temeller). İlerleme: [ROADMAP.md](ROADMAP.md).
 | `packages/game_core/` | Saf Dart kural motoru. Tek doğruluk kaynağı: `docs/rules.md` |
 | `packages/game_ai/` | Yapay zeka rakip (Faz 2) |
 | `docs/rules.md` | Oyun kuralları spesifikasyonu (canonical) |
+| `docs/theme-bible.md` | Görsel/işitsel yön (jenerik askeri, low-poly) |
 | `docs/legal-clearance.md` | Telif/marka uyum kayıt defteri |
+
+Hedef platformlar: **Android + iOS**. `web/` yalnızca geliştirme/test kolaylığı
+(`flutter run -d chrome`), henüz bir yayın hedefi kararı değil.
 
 ## Geliştirme
 

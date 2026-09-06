@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'ui/home_screen.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
   runApp(const HattiMudafaaApp());
 }
 
-/// Uygulama kökü. Faz 0 iskeleti — menü, oyun ekranı ve reklam yuvası
-/// sonraki fazlarda eklenecek (bkz. ROADMAP.md).
+/// Uygulama kökü. Faz 1 — yerel (hot-seat) oyun. Reklam yuvası ve online
+/// sonraki fazlarda (bkz. ROADMAP.md).
 class HattiMudafaaApp extends StatelessWidget {
   const HattiMudafaaApp({super.key});
 

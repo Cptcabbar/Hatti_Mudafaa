@@ -90,20 +90,21 @@ Kilitlenen kararlar: Flutter+Flame · Supabase · Quoridor-türevi mekanik + tam
 - [x] Property-based test: 25 rastgele kendi kendine oyun — çökme yok, her canlı durumda ≥1 yasal hamle
 
 ### Flame oyun ekranı
-- [ ] Tahta / grid render
-- [ ] **⚖️ İki asker piyon** — özgün tasarım, gerçek ordu amblemi/logosu/kişi benzerliği yok
-- [ ] **⚖️ Mayın (1-seg) görseli + yerleştirme UI** — özgün varlık
-- [ ] **⚖️ Dikenli tel (2-seg) görseli + yerleştirme UI** — özgün varlık
-- [ ] Tur göstergesi + kalan mayın/tel sayacı
-- [ ] Hamle animasyonları
-- [ ] Kazanma ekranı + yeniden başlat
+- [x] Tahta / grid render + hedef satır tintleri + yasal hamle vurguları — `BoardComponent`
+- [~] **⚖️ İki asker piyon** — şimdilik placeholder daire; özgün low-poly varlık sonra (Faz 5 tema)
+- [~] **⚖️ Mayın (1-seg) yerleştirme UI** — mod düğmesi + snap + önizleme (yeşil=yasal) + Onayla/Döndür/İptal çalışıyor; görsel placeholder
+- [~] **⚖️ Dikenli tel (2-seg) yerleştirme UI** — aynı akış; görsel placeholder
+- [x] Tur göstergesi + kalan cephanelik sayacı (sıradaki oyuncunun) + geri al düğmesi
+- [ ] Hamle animasyonları — henüz yok (piyon anında ışınlanıyor)
+- [x] Kazanma diyaloğu + yeniden başlat
 
 ### Uygulama kabuğu
-- [ ] Ana menü (Yerel oyna / Ayarlar)
+- [x] Ana menü (Yerel oyna) — Ayarlar sonra
 - [ ] Ayarlar (dil, ses)
-- [ ] **⚖️ Tek tema** — tüm varlıkları özgün/lisanslı, kayıtları `legal-clearance.md`'de
-- [ ] Geri alma (undo) — onaylı
-- [ ] **Çıkış kriteri:** iki kişi aynı cihazda kurallara uygun tam oyun oynuyor; `game_core` testlerle tam kapsanmış; tüm görsel varlıkların lisans/özgünlük kaydı tam
+- [~] **⚖️ Tek tema** — placeholder renk paleti (`docs/theme-bible.md` §3); özgün varlıklar sonra
+- [~] Geri alma (undo) — çalışıyor; onay diyaloğu henüz yok
+- [x] Dokunma etkileşimi: mod düğmeleri (Hareket / Mayın·1 / Tel·2), tahta dokunması → hamle/önizleme
+- [ ] **Çıkış kriteri:** iki kişi aynı cihazda kurallara uygun tam oyun oynuyor *(oynanış tamam; kalan: animasyon + özgün görseller + ayarlar)*
 
 ---
 
