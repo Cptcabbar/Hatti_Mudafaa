@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter --version
+
+      - name: Bağımlılıklar
+        run: |
+          flutter pub get
+          dart pub get -C packages/game_core
+          dart pub get -C packages/game_ai
+
+      - name: Analiz
+        run: |
+          dart analyze
+          dart analyze packages/game_core
+          dart analyze packages/game_ai
+
+      - name: Test — game_core
+        working-directory: packages/game_core
+        run: dart test
+
+      - name: Test — game_ai
+        working-directory: packages/game_ai
+        run: dart test
+
+      - name: Test — uygulama
+        run: flutter test

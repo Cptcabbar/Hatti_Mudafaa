@@ -1,0 +1,11 @@
+# Tüm metin dosyaları depoda LF; Windows'ta çalışırken otomatik dönüşür.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.ttf binary
+*.otf binary
+*.jar binary
+*.keystore binary

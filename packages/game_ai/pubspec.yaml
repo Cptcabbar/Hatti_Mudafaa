@@ -1,0 +1,15 @@
+name: game_ai
+description: Kapalı Yol yapay zeka rakip — negamax + alpha-beta, game_core üstünde. Faz 2.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.13.0
+
+dependencies:
+  game_core:
+    path: ../game_core
+
+dev_dependencies:
+  lints: ^4.0.0
+  test: ^1.25.0
