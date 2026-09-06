@@ -81,6 +81,11 @@ class BoardState {
   bool isEdgeBlocked(Square a, Square b) =>
       _blockedEdges.contains(Edge.between(a, b));
 
+  /// [barrier]'ın kapatacağı kenarlardan en az biri zaten kapalı mı?
+  /// (`docs/rules.md` §5.3/2 — çakışma yasağı)
+  bool overlapsExistingBarrier(Barrier barrier) =>
+      barrier.blockedEdges().any(_blockedEdges.contains);
+
   BoardState copyWith({
     Square? pawnP1,
     Square? pawnP2,

@@ -62,6 +62,18 @@ enum Direction {
         Direction.east => Direction.west,
         Direction.west => Direction.east,
       };
+
+  /// Bu yöne dik iki yön (çapraz atlama için).
+  List<Direction> get perpendiculars => switch (this) {
+        Direction.north || Direction.south => const [
+            Direction.east,
+            Direction.west,
+          ],
+        Direction.east || Direction.west => const [
+            Direction.north,
+            Direction.south,
+          ],
+      };
 }
 
 /// İki ortogonal komşu kare arasındaki sınır (kenar). Bir engel segmenti

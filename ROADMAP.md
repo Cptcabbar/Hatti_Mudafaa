@@ -77,17 +77,17 @@ Kilitlenen kararlar: Flutter+Flame · Supabase · Quoridor-türevi mekanik + tam
 
 ## FAZ 1 — Yerel hot-seat MVP (oynanabilir)
 
-### Kural motoru (`game_core`)
-- [ ] Board state modeli (7×7 grid, piyon konumları, engeller, sıra, kalan mayın/tel)
-- [ ] Piyon hareket üretimi (ortogonal 1 adım)
-- [ ] Zıplama + çapraz atlama kuralları (kendi spec'imize göre)
-- [ ] Engel yerleştirme geçerliliği (sınır, çakışma, kesişme)
-- [ ] **"Yol kapatılamaz" kontrolü** — her engel için iki oyuncuya da BFS/DFS ile hedefe yol
-- [ ] Kazanma tespiti
-- [ ] Seri hale getirme: kompakt hamle notasyonu + tam state (JSON)
-- [ ] **⚖️ Kod terminolojisi kendi jargonumuzla** (değişken/sınıf isimleri kural spec'imizden; orijinal oyunun özel terimleri kullanılmadı)
-- [ ] Unit test seti: kural + "yol kapatma" invaryantı + zıplama + kazanma + serialization round-trip
-- [ ] Property-based test: rastgele oyunlar illegal state'e düşmüyor
+### Kural motoru (`game_core`) — ✅ tamam (51 test geçiyor)
+- [x] Board state modeli (7×7 grid, piyon konumları, engeller, sıra, kalan cephanelik puanı) — `BoardState` (immutable)
+- [x] Piyon hareket üretimi (ortogonal 1 adım) — `Rules.pawnMoves`
+- [x] Zıplama + koşullu çapraz atlama kuralları (rules.md §4.2)
+- [x] Engel yerleştirme geçerliliği (sınır, çakışma, tel+tel dik kesişme) — `Rules.canPlaceBarrier`
+- [x] **"Yol kapatılamaz" kontrolü** — `Pathfinding.hasPathToRow` (BFS), her engel adayında iki asker için
+- [x] Kazanma tespiti — `Rules.applyMove` (hedef satır)
+- [x] Seri hale getirme: kompakt hamle notasyonu + tam state (JSON) — `Move`/`Barrier`/`BoardState`/`GameRecord`
+- [x] **⚖️ Kod terminolojisi kendi jargonumuzla** (spec terminolojisi; orijinal oyunun özel terimleri yok)
+- [x] Unit test seti: hareket/atlama/engel/yol kapatma invaryantı/kazanma/serialization round-trip
+- [x] Property-based test: 25 rastgele kendi kendine oyun — çökme yok, her canlı durumda ≥1 yasal hamle
 
 ### Flame oyun ekranı
 - [ ] Tahta / grid render
