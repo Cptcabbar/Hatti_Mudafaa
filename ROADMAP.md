@@ -95,16 +95,18 @@ Kilitlenen kararlar: Flutter+Flame · Supabase · Quoridor-türevi mekanik + tam
 - [~] **⚖️ Mayın (1-seg) yerleştirme UI** — mod düğmesi + snap + önizleme (yeşil=yasal) + Onayla/Döndür/İptal çalışıyor; görsel placeholder
 - [~] **⚖️ Dikenli tel (2-seg) yerleştirme UI** — aynı akış; görsel placeholder
 - [x] Tur göstergesi + kalan cephanelik sayacı (sıradaki oyuncunun) + geri al düğmesi
+- [x] **İki taraflı hot-seat düzeni** — telefon masaya yatık; alt panel P1 (düz), üst panel P2 (180° dönük); sırası olmayan oyuncunun paneli katlanır (kilitli şerit)
+- [x] **Süreli mod** — her tur 30 sn, sağ kenarda azalan çubuk + iki uçta okunur sayaç; süre dolunca asker hedefe doğru otomatik ilerler; ana menüde aç/kapa
 - [ ] Hamle animasyonları — henüz yok (piyon anında ışınlanıyor)
 - [x] Kazanma diyaloğu + yeniden başlat
 
 ### Uygulama kabuğu
-- [x] Ana menü (Yerel oyna) — Ayarlar sonra
-- [ ] Ayarlar (dil, ses)
+- [x] Ana menü (Yerel oyna + süreli mod toggle) — tam Ayarlar ekranı sonra
+- [ ] Ayarlar ekranı (dil, ses)
 - [~] **⚖️ Tek tema** — placeholder renk paleti (`docs/theme-bible.md` §3); özgün varlıklar sonra
 - [~] Geri alma (undo) — çalışıyor; onay diyaloğu henüz yok
 - [x] Dokunma etkileşimi: mod düğmeleri (Hareket / Mayın·1 / Tel·2), tahta dokunması → hamle/önizleme
-- [ ] **Çıkış kriteri:** iki kişi aynı cihazda kurallara uygun tam oyun oynuyor *(oynanış tamam; kalan: animasyon + özgün görseller + ayarlar)*
+- [ ] **Çıkış kriteri:** iki kişi aynı cihazda kurallara uygun tam oyun oynuyor *(oynanış + hot-seat düzeni + süre tamam; kalan: animasyon + özgün görseller + ayarlar ekranı)*
 
 ---
 

@@ -6,9 +6,12 @@ import 'package:hatti_mudafaa/game/game_controller.dart';
 void main() {
   final metrics = BoardMetrics(boardSize: 7, side: 700); // hücre = 100
 
+  GameController make({GameConfig? config}) =>
+      GameController(config: config ?? GameConfig.v1, timed: false);
+
   group('hareket modu', () {
     test('başlangıç: yasal hedefler c1/e1/d2, geri alınamaz', () {
-      final c = GameController();
+      final c = make();
       expect(
         c.legalStepTargets.map((s) => s.toString()).toSet(),
         {'c1', 'e1', 'd2'},
@@ -18,7 +21,7 @@ void main() {
     });
 
     test('yasal kareye dokunmak piyonu oynatır ve sırayı çevirir', () {
-      final c = GameController();
+      final c = make();
       c.tapBoard(metrics.cellCenter(Square.parse('d2')), metrics);
       expect(c.state.pawnP1, Square.parse('d2'));
       expect(c.state.turn, Player.p2);
@@ -26,14 +29,14 @@ void main() {
     });
 
     test('yasadışı kareye dokunmak bir şey değiştirmez', () {
-      final c = GameController();
+      final c = make();
       c.tapBoard(metrics.cellCenter(Square.parse('a4')), metrics);
       expect(c.state.pawnP1, Square.parse('d1'));
       expect(c.state.turn, Player.p1);
     });
 
     test('geri al başlangıca döndürür', () {
-      final c = GameController()
+      final c = make()
         ..tapBoard(metrics.cellCenter(Square.parse('d2')), metrics);
       c.undo();
       expect(c.state.pawnP1, Square.parse('d1'));
@@ -43,14 +46,14 @@ void main() {
 
   group('engel modu', () {
     test('mayın modunda dokunmak önizleme kurar', () {
-      final c = GameController()..setMode(InteractionMode.mine);
+      final c = make()..setMode(InteractionMode.mine);
       c.tapBoard(const Offset(350, 500), metrics);
       expect(c.preview, isNotNull);
       expect(c.preview!.isMine, isTrue);
     });
 
     test('onayla: engel konur, puan düşer, sıra döner, moda geri', () {
-      final c = GameController()..setMode(InteractionMode.mine);
+      final c = make()..setMode(InteractionMode.mine);
       c.tapBoard(const Offset(350, 500), metrics);
       expect(c.canConfirmPreview, isTrue);
       c.confirmPreview();
@@ -62,7 +65,7 @@ void main() {
     });
 
     test('döndür önizlemenin yönünü çevirir', () {
-      final c = GameController()..setMode(InteractionMode.wire);
+      final c = make()..setMode(InteractionMode.wire);
       c.tapBoard(const Offset(350, 350), metrics);
       final before = c.preview!.orientation;
       c.rotatePreview();
@@ -70,20 +73,40 @@ void main() {
     });
 
     test('cephanelik biterse mayın modu satın alınamaz', () {
-      final c = GameController(
-        config: GameConfig.v1.copyWith(armoryPoints: 0),
-      );
+      final c = make(config: GameConfig.v1.copyWith(armoryPoints: 0));
       expect(c.canAfford(BarrierType.mine), isFalse);
       expect(c.canAfford(BarrierType.wire), isFalse);
     });
   });
 
   test('restart temiz duruma döner', () {
-    final c = GameController()
-      ..tapBoard(metrics.cellCenter(Square.parse('d2')), metrics);
+    final c = make()..tapBoard(metrics.cellCenter(Square.parse('d2')), metrics);
     c.restart();
     expect(c.state.pawnP1, Square.parse('d1'));
     expect(c.state.ply, 0);
     expect(c.canUndo, isFalse);
+  });
+
+  group('süreli mod', () {
+    test('süre dolunca sıradaki asker hedefe doğru otomatik ilerler', () async {
+      final c = GameController(
+        timed: true,
+        turnDuration: const Duration(milliseconds: 400),
+      );
+      expect(c.turn, Player.p1);
+
+      await Future<void>.delayed(const Duration(milliseconds: 900));
+      c.dispose(); // sayacı durdur, daha fazla otomatik hamle olmasın
+
+      expect(c.state.ply, greaterThanOrEqualTo(1));
+      // p1'in ilk otomatik hamlesi hedefe en çok yaklaştıran adım: d1 → d2
+      expect(c.state.pawnP1, Square.parse('d2'));
+    });
+
+    test('süreli mod kapalıyken sayaç sıfır', () {
+      final c = make();
+      expect(c.secondsLeft, 0);
+      expect(c.turnFraction, 0);
+    });
   });
 }

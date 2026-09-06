@@ -4,7 +4,7 @@ import 'package:hatti_mudafaa/ui/game_screen.dart';
 
 void main() {
   testWidgets('oyun ekranı açılır: durum çubuğu + mod düğmeleri', (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: GameScreen()));
+    await tester.pumpWidget(const MaterialApp(home: GameScreen(timed: false)));
     await tester.pump();
 
     expect(find.text('Mavi oynuyor'), findsOneWidget);
@@ -16,7 +16,7 @@ void main() {
   });
 
   testWidgets('Mayın moduna geçince onay çubuğu belirir', (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: GameScreen()));
+    await tester.pumpWidget(const MaterialApp(home: GameScreen(timed: false)));
     await tester.pump();
 
     await tester.tap(find.text('Mayın · 1'));

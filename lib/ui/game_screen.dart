@@ -5,9 +5,15 @@ import 'package:game_core/game_core.dart';
 import '../game/board_component.dart';
 import '../game/game_controller.dart';
 
-/// Yerel (hot-seat) oyun ekranı: Flame tahtası + üstte durum, altta mod çubuğu.
+/// Yerel (hot-seat) oyun ekranı.
+///
+/// Telefon masaya yatık konur; iki oyuncu karşılıklı oturur. Her oyuncunun
+/// kendi paneli kendi tarafındadır (üstteki 180° dönük). Sıra sende değilken
+/// panelin katlanır. Süreli modda her tur 30 sn — sayaç sağ kenarda.
 class GameScreen extends StatefulWidget {
-  const GameScreen({super.key});
+  const GameScreen({super.key, this.timed = true});
+
+  final bool timed;
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -21,7 +27,7 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void initState() {
     super.initState();
-    controller = GameController();
+    controller = GameController(timed: widget.timed);
     game = HattiBoardGame(controller);
     controller.addListener(_onControllerChange);
   }
@@ -41,15 +47,20 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   Future<void> _showWinDialog() async {
+    if (!mounted) return;
     final winner = controller.state.winner!;
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: Text('${_playerName(winner)} kazandı'),
+        title: Text('${playerName(winner)} kazandı'),
         content: const Text('Yeni bir oyun başlatmak ister misin?'),
         actions: [
           TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Kapat'),
+          ),
+          FilledButton(
             onPressed: () {
               Navigator.of(context).pop();
               _dialogOpen = false;
@@ -62,87 +73,153 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-  static String _playerName(Player p) => p == Player.p1 ? 'Mavi' : 'Kırmızı';
+  static String playerName(Player p) => p == Player.p1 ? 'Mavi' : 'Kırmızı';
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Yerel oyun')),
       body: SafeArea(
-        child: Column(
-          children: [
-            AnimatedBuilder(
-              animation: controller,
-              builder: (context, _) => _StatusBar(controller: controller),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: GameWidget(game: game),
-              ),
-            ),
-            AnimatedBuilder(
-              animation: controller,
-              builder: (context, _) => _ControlBar(controller: controller),
-            ),
-          ],
+        child: AnimatedBuilder(
+          animation: controller,
+          builder: (context, _) {
+            return Column(
+              children: [
+                _PlayerPanel(
+                  controller: controller,
+                  player: Player.p2,
+                  rotated: true,
+                ),
+                Expanded(
+                  child: Stack(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: GameWidget(game: game),
+                      ),
+                      Positioned(
+                        left: 4,
+                        top: 0,
+                        bottom: 0,
+                        child: Center(
+                          child: IconButton.filledTonal(
+                            tooltip: 'Çıkış',
+                            onPressed: () => Navigator.of(context).maybePop(),
+                            icon: const Icon(Icons.close),
+                          ),
+                        ),
+                      ),
+                      if (widget.timed)
+                        Positioned(
+                          right: 4,
+                          top: 8,
+                          bottom: 8,
+                          width: 30,
+                          child: _TurnTimer(controller: controller),
+                        ),
+                    ],
+                  ),
+                ),
+                _PlayerPanel(
+                  controller: controller,
+                  player: Player.p1,
+                  rotated: false,
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 }
 
-class _StatusBar extends StatelessWidget {
-  const _StatusBar({required this.controller});
+/// Bir oyuncunun kontrol paneli. Sırası ondaysa açık, değilse katlı.
+class _PlayerPanel extends StatelessWidget {
+  const _PlayerPanel({
+    required this.controller,
+    required this.player,
+    required this.rotated,
+  });
 
   final GameController controller;
+  final Player player;
+  final bool rotated;
+
+  Color get _color =>
+      player == Player.p1 ? const Color(0xFF3E6E9E) : const Color(0xFFA2433B);
+
+  bool get _active => controller.turn == player && !controller.isOver;
 
   @override
   Widget build(BuildContext context) {
-    final state = controller.state;
-    final turnColor =
-        state.turn == Player.p1 ? const Color(0xFF3E6E9E) : const Color(0xFFA2433B);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    final body = AnimatedSize(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOut,
+      alignment: Alignment.center,
+      child: _active ? _activeBody(context) : _foldedBody(context),
+    );
+    return Material(
+      color: _color.withValues(alpha: _active ? 0.14 : 0.06),
+      child: rotated ? RotatedBox(quarterTurns: 2, child: body) : body,
+    );
+  }
+
+  Widget _foldedBody(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.circle, size: 14, color: turnColor),
+          Icon(
+            controller.isOver ? Icons.flag : Icons.lock_outline,
+            size: 16,
+            color: _color,
+          ),
           const SizedBox(width: 8),
           Text(
-            state.isOver
+            controller.isOver
                 ? 'Oyun bitti'
-                : '${_GameScreenState._playerName(state.turn)} oynuyor',
+                : '${_GameScreenState.playerName(player)} · sıra rakipte',
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
-          const Spacer(),
-          const Icon(Icons.bolt, size: 18),
-          const SizedBox(width: 4),
-          Text('${controller.currentArmory}'),
           const SizedBox(width: 12),
-          IconButton(
-            tooltip: 'Geri al',
-            onPressed: controller.canUndo ? controller.undo : null,
-            icon: const Icon(Icons.undo),
-          ),
+          const Icon(Icons.bolt, size: 16),
+          Text(' ${controller.armoryOf(player)}'),
         ],
       ),
     );
   }
-}
 
-class _ControlBar extends StatelessWidget {
-  const _ControlBar({required this.controller});
-
-  final GameController controller;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _activeBody(BuildContext context) {
     final inBarrierMode = controller.mode != InteractionMode.move;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          Row(
+            children: [
+              Icon(Icons.circle, size: 14, color: _color),
+              const SizedBox(width: 8),
+              Text(
+                '${_GameScreenState.playerName(player)} oynuyor',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              const Spacer(),
+              const Icon(Icons.bolt, size: 18),
+              const SizedBox(width: 2),
+              Text('${controller.armoryOf(player)}'),
+              const SizedBox(width: 8),
+              IconButton(
+                tooltip: 'Geri al',
+                visualDensity: VisualDensity.compact,
+                onPressed: controller.canUndo ? controller.undo : null,
+                icon: const Icon(Icons.undo),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
           Row(
             children: [
               Expanded(
@@ -150,7 +227,7 @@ class _ControlBar extends StatelessWidget {
                   label: 'Hareket',
                   icon: Icons.directions_walk,
                   selected: controller.mode == InteractionMode.move,
-                  enabled: !controller.isOver,
+                  enabled: true,
                   onTap: () => controller.setMode(InteractionMode.move),
                 ),
               ),
@@ -160,8 +237,7 @@ class _ControlBar extends StatelessWidget {
                   label: 'Mayın · 1',
                   icon: Icons.brightness_1,
                   selected: controller.mode == InteractionMode.mine,
-                  enabled:
-                      !controller.isOver && controller.canAfford(BarrierType.mine),
+                  enabled: controller.canAfford(BarrierType.mine),
                   onTap: () => controller.setMode(InteractionMode.mine),
                 ),
               ),
@@ -171,8 +247,7 @@ class _ControlBar extends StatelessWidget {
                   label: 'Tel · 2',
                   icon: Icons.dehaze,
                   selected: controller.mode == InteractionMode.wire,
-                  enabled:
-                      !controller.isOver && controller.canAfford(BarrierType.wire),
+                  enabled: controller.canAfford(BarrierType.wire),
                   onTap: () => controller.setMode(InteractionMode.wire),
                 ),
               ),
@@ -266,6 +341,68 @@ class _ModeChip extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Sağ kenarda dikey tur sayacı. Dolu çubuk aşağıdan azalır; saniye sayısı
+/// hem üstte (ters) hem altta (düz) yazılır ki iki taraftan da okunsun.
+class _TurnTimer extends StatelessWidget {
+  const _TurnTimer({required this.controller});
+
+  final GameController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final fraction = controller.turnFraction;
+    final seconds = controller.secondsLeft.ceil().clamp(0, 999);
+    final Color barColor;
+    if (fraction > 0.5) {
+      barColor = const Color(0xFF4CAF50);
+    } else if (fraction > 0.2) {
+      barColor = const Color(0xFFE0A72E);
+    } else {
+      barColor = const Color(0xFFE5484D);
+    }
+
+    Widget label(int quarterTurns) => RotatedBox(
+          quarterTurns: quarterTurns,
+          child: Text(
+            '$seconds',
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 13,
+              color: Colors.white,
+            ),
+          ),
+        );
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        color: const Color(0xFF14110D).withValues(alpha: 0.85),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: FractionallySizedBox(
+                heightFactor: controller.isOver ? 0 : fraction,
+                widthFactor: 1,
+                child: ColoredBox(color: barColor.withValues(alpha: 0.85)),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [label(2), label(0)],
+              ),
+            ),
+          ],
         ),
       ),
     );

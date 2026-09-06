@@ -4,8 +4,15 @@ import 'package:game_core/game_core.dart';
 import 'game_screen.dart';
 
 /// Ana menü (Faz 1). Yapay zeka ve online sonraki fazlarda.
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  bool _timed = true;
 
   @override
   Widget build(BuildContext context) {
@@ -32,11 +39,21 @@ class HomeScreen extends StatelessWidget {
               FilledButton.icon(
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
-                    builder: (context) => const GameScreen(),
+                    builder: (context) => GameScreen(timed: _timed),
                   ),
                 ),
                 icon: const Icon(Icons.people),
                 label: const Text('Yerel oyna (2 kişi)'),
+              ),
+              const SizedBox(height: 12),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 320),
+                child: SwitchListTile(
+                  value: _timed,
+                  onChanged: (v) => setState(() => _timed = v),
+                  title: const Text('Süreli mod'),
+                  subtitle: const Text('Her tur 30 saniye'),
+                ),
               ),
               const SizedBox(height: 24),
               Text(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
@@ -10,18 +11,31 @@ enum InteractionMode { move, mine, wire }
 
 /// `game_core` durumu ile yerel oyun arayüzü arasındaki köprü.
 ///
-/// Kural kararı vermez — yalnızca [Rules]'u çağırır, geçmişi (undo için) tutar
-/// ve etkileşim durumunu (mod, engel önizlemesi) yönetir.
+/// Kural kararı vermez — yalnızca [Rules]'u çağırır, geçmişi (undo için) tutar,
+/// etkileşim durumunu (mod, engel önizlemesi) ve tur sayacını yönetir.
 class GameController extends ChangeNotifier {
-  GameController({GameConfig config = GameConfig.v1})
-      : _config = config,
-        _state = BoardState.initial(config);
+  GameController({
+    GameConfig config = GameConfig.v1,
+    this.timed = true,
+    this.turnDuration = const Duration(seconds: 30),
+  })  : _config = config,
+        _state = BoardState.initial(config) {
+    _startTurnTimer();
+  }
 
   final GameConfig _config;
+
+  /// Süreli mod açık mı (her tur [turnDuration]).
+  final bool timed;
+  final Duration turnDuration;
+
   BoardState _state;
   final List<BoardState> _history = [];
   InteractionMode _mode = InteractionMode.move;
   Barrier? _preview;
+
+  Timer? _ticker;
+  double _secondsLeft = 0;
 
   BoardState get state => _state;
   InteractionMode get mode => _mode;
@@ -30,6 +44,17 @@ class GameController extends ChangeNotifier {
   bool get isOver => _state.isOver;
   Player get turn => _state.turn;
 
+  /// Kalan tur süresi (saniye). Süreli mod kapalıysa 0.
+  double get secondsLeft => _secondsLeft;
+
+  /// Kalan sürenin oranı 0..1 (sayaç çubuğu için).
+  double get turnFraction {
+    final total = turnDuration.inMilliseconds / 1000.0;
+    if (!timed || total <= 0) return 0;
+    return (_secondsLeft / total).clamp(0.0, 1.0);
+  }
+
+  int armoryOf(Player p) => _state.armoryOf(p);
   int get currentArmory => _state.armoryOf(_state.turn);
 
   bool canAfford(BarrierType type) =>
@@ -136,6 +161,56 @@ class GameController extends ChangeNotifier {
   void _resetInteraction() {
     _preview = null;
     _mode = InteractionMode.move;
+    _startTurnTimer();
     notifyListeners();
+  }
+
+  // --- Tur sayacı --------------------------------------------------------------
+
+  void _startTurnTimer() {
+    _ticker?.cancel();
+    if (!timed || _state.isOver) {
+      _secondsLeft = 0;
+      return;
+    }
+    _secondsLeft = turnDuration.inMilliseconds / 1000.0;
+    _ticker = Timer.periodic(const Duration(milliseconds: 200), (_) {
+      _secondsLeft -= 0.2;
+      if (_secondsLeft <= 0) {
+        _secondsLeft = 0;
+        _ticker?.cancel();
+        _handleTimeout();
+      }
+      notifyListeners();
+    });
+  }
+
+  /// Süre dolunca: sıradaki asker hedefe en çok yaklaşan adımı otomatik yapar.
+  void _handleTimeout() {
+    if (_state.isOver) return;
+    _apply(_autoMove());
+  }
+
+  Move _autoMove() {
+    final goalRow = _state.goalRowOf(_state.turn);
+    final steps = Rules.pawnMoves(_state);
+    if (steps.isEmpty) return Rules.legalMoves(_state).first;
+    var best = steps.first;
+    var bestDist = 1 << 30;
+    for (final m in steps) {
+      final d = Pathfinding.shortestDistanceToRow(_state, m.to, goalRow) ??
+          (1 << 30);
+      if (d < bestDist) {
+        bestDist = d;
+        best = m;
+      }
+    }
+    return best;
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
   }
 }
