@@ -1,14 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'ui/home_screen.dart';
+import 'ui/loading_view.dart';
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
+void main() {
   runApp(const HattiMudafaaApp());
 }
 
@@ -29,7 +27,46 @@ class HattiMudafaaApp extends StatelessWidget {
           brightness: Brightness.dark,
         ),
       ),
-      home: const HomeScreen(),
+      home: const _Bootstrap(),
+    );
+  }
+}
+
+/// Açılış hazırlığı. Şimdilik hızlı (yön kilidi); ileride font/atlas/ayar/ads
+/// yüklemesi buraya `await` edilecek. Hazır olana kadar oyunun ortak yükleme
+/// görünümü ([LoadingView]) gösterilir — uygulama ilk kareden itibaren tek bir
+/// görsel dilde açılır.
+class _Bootstrap extends StatefulWidget {
+  const _Bootstrap();
+
+  @override
+  State<_Bootstrap> createState() => _BootstrapState();
+}
+
+class _BootstrapState extends State<_Bootstrap> {
+  late final Future<void> _ready = _prepare();
+
+  Future<void> _prepare() async {
+    // Yön kilidi UI'ı bekletmemeli; platform yanıtını beklemeden geçiyoruz.
+    unawaited(
+      SystemChrome.setPreferredOrientations(const [
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+      ]),
+    );
+    // İleride: await _loadFontsAndAtlas(); await _loadSettings(); ...
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<void>(
+      future: _ready,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.done) {
+          return const HomeScreen();
+        }
+        return const LoadingView();
+      },
     );
   }
 }

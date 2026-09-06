@@ -101,7 +101,8 @@ Kilitlenen kararlar: Flutter+Flame · Supabase · Quoridor-türevi mekanik + tam
 - [x] Kazanma diyaloğu + yeniden başlat
 
 ### Uygulama kabuğu
-- [x] Ana menü — sade + görsel arka plan (degrade, hayalet tahta, low-poly siper hattı, mayınlar); Yerel oyna + süreli mod toggle. Tam Ayarlar ekranı sonra
+- [x] Ana menü — sade + görsel arka plan (paylaşılan `ThemeBackdrop`: degrade, hayalet tahta, low-poly siper hattı, mayınlar); Yerel oyna + süreli mod toggle. Tam Ayarlar ekranı sonra
+- [x] **Ortak yükleme görünümü** (`lib/ui/loading_view.dart`) — ana menüyle aynı arka plan + temaya uygun radar spinner + "Yükleniyor"; açılış hazırlığında (`_Bootstrap`) ve Flame sahnesi yüklenirken kullanılır. Sonraki fazlar (online lobi, yapay zeka hazırlığı) aynı görünümü yeniden kullanır.
 - [ ] Ayarlar ekranı (dil, ses)
 - [~] **⚖️ Tek tema** — placeholder renk paleti (`docs/theme-bible.md` §3); özgün varlıklar sonra
 - [~] Geri alma (undo) — çalışıyor; onay diyaloğu henüz yok

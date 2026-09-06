@@ -3,9 +3,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hatti_mudafaa/ui/game_screen.dart';
 
 void main() {
+  /// Flame sahnesi yüklenip "Cephe hazırlanıyor" örtüsü kalkana kadar bekle.
+  Future<void> settleScene(WidgetTester tester) async {
+    for (var i = 0; i < 40; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+      if (find.text('Cephe hazırlanıyor').evaluate().isEmpty) return;
+    }
+  }
+
   testWidgets('oyun ekranı açılır: durum çubuğu + mod düğmeleri', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: GameScreen(timed: false)));
-    await tester.pump();
+    await settleScene(tester);
 
     expect(find.text('Mavi oynuyor'), findsOneWidget);
     expect(find.text('Hareket'), findsOneWidget);
@@ -17,7 +25,7 @@ void main() {
 
   testWidgets('Mayın moduna geçince onay çubuğu belirir', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: GameScreen(timed: false)));
-    await tester.pump();
+    await settleScene(tester);
 
     await tester.tap(find.text('Mayın · 1'));
     await tester.pump();

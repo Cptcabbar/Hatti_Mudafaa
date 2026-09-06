@@ -4,6 +4,7 @@ import 'package:game_core/game_core.dart';
 
 import '../game/board_component.dart';
 import '../game/game_controller.dart';
+import 'loading_view.dart';
 
 /// Yerel (hot-seat) oyun ekranı.
 ///
@@ -23,6 +24,7 @@ class _GameScreenState extends State<GameScreen> {
   late final GameController controller;
   late final HattiBoardGame game;
   bool _dialogOpen = false;
+  bool _sceneReady = false;
 
   @override
   void initState() {
@@ -30,6 +32,10 @@ class _GameScreenState extends State<GameScreen> {
     controller = GameController(timed: widget.timed);
     game = HattiBoardGame(controller);
     controller.addListener(_onControllerChange);
+    // Flame sahnesi yüklenene kadar ortak yükleme görünümü tam ekran örtsün.
+    game.loaded.then((_) {
+      if (mounted) setState(() => _sceneReady = true);
+    });
   }
 
   @override
@@ -78,57 +84,67 @@ class _GameScreenState extends State<GameScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: AnimatedBuilder(
-          animation: controller,
-          builder: (context, _) {
-            return Column(
-              children: [
-                _PlayerPanel(
-                  controller: controller,
-                  player: Player.p2,
-                  rotated: true,
-                ),
-                Expanded(
-                  child: Stack(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(8),
-                        child: GameWidget(game: game),
-                      ),
-                      Positioned(
-                        left: 4,
-                        top: 0,
-                        bottom: 0,
-                        child: Center(
-                          child: IconButton.filledTonal(
-                            tooltip: 'Çıkış',
-                            onPressed: () => Navigator.of(context).maybePop(),
-                            icon: const Icon(Icons.close),
-                          ),
-                        ),
-                      ),
-                      if (widget.timed)
-                        Positioned(
-                          right: 4,
-                          top: 8,
-                          bottom: 8,
-                          width: 30,
-                          child: _TurnTimer(controller: controller),
-                        ),
-                    ],
-                  ),
-                ),
-                _PlayerPanel(
-                  controller: controller,
-                  player: Player.p1,
-                  rotated: false,
-                ),
-              ],
-            );
-          },
-        ),
+      body: Stack(
+        children: [
+          SafeArea(child: _buildGame()),
+          if (!_sceneReady)
+            const Positioned.fill(
+              child: LoadingView(message: 'Cephe hazırlanıyor'),
+            ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildGame() {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        return Column(
+          children: [
+            _PlayerPanel(
+              controller: controller,
+              player: Player.p2,
+              rotated: true,
+            ),
+            Expanded(
+              child: Stack(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: GameWidget(game: game),
+                  ),
+                  Positioned(
+                    left: 4,
+                    top: 0,
+                    bottom: 0,
+                    child: Center(
+                      child: IconButton.filledTonal(
+                        tooltip: 'Çıkış',
+                        onPressed: () => Navigator.of(context).maybePop(),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ),
+                  ),
+                  if (widget.timed)
+                    Positioned(
+                      right: 4,
+                      top: 8,
+                      bottom: 8,
+                      width: 30,
+                      child: _TurnTimer(controller: controller),
+                    ),
+                ],
+              ),
+            ),
+            _PlayerPanel(
+              controller: controller,
+              player: Player.p1,
+              rotated: false,
+            ),
+          ],
+        );
+      },
     );
   }
 }
