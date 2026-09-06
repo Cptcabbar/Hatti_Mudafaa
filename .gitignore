@@ -54,3 +54,6 @@ packages/*/pubspec.lock
 
 # OS / editör
 Thumbs.db
+
+# Claude Code yerel ayarları
+.claude/
