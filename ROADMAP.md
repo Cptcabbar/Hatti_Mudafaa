@@ -91,7 +91,7 @@ Kilitlenen kararlar: Flutter+Flame · Supabase · Quoridor-türevi mekanik + tam
 
 ### Flame oyun ekranı
 - [x] Tahta / grid render + hedef satır tintleri + yasal hamle vurguları — `BoardComponent`
-- [~] **Görsel zenginleştirme (sürüyor)** — tümü programatik (Flame/Canvas), ton **sert/gerçekçi** (çamur, toz, is, yıpranma). ① Kamera: tahta sıradaki oyuncuya doğru hafifçe eğilir, sıra değişince yumuşak animasyonla döner (`BoardProjection`, izdüşüm birebir tersinir, testli); piyonlar dik + zemin gölgesi + derinlik ölçeği ✅. ② zemin/arazi dokusu · ③ çevre/atmosfer · ④ askerler · ⑤ engeller · ⑥ UI · ⑦ ana menü — sırada.
+- [~] **Görsel zenginleştirme (sürüyor)** — tümü programatik (Flame/Canvas), ton **sert/gerçekçi** (çamur, toz, is, yıpranma). ① Kamera: tahta sıradaki oyuncuya doğru hafifçe eğilir, sıra değişince yumuşak animasyonla döner (`BoardProjection`, izdüşüm birebir tersinir, testli); piyonlar dik + zemin gölgesi + derinlik ölçeği ✅. ② Zemin dokusu: bir kez bake edilen çamur/benek/krater/yıpranmış ızgara/hedef sektörleri, eğim izdüşümünden geçer ✅. ③ çevre/atmosfer · ④ askerler · ⑤ engeller · ⑥ UI · ⑦ ana menü — sırada.
 - [~] **⚖️ İki asker piyon** — şimdilik placeholder daire; özgün low-poly varlık sonra (Faz 5 tema)
 - [~] **⚖️ Mayın (1-seg) yerleştirme UI** — mod düğmesi + snap + önizleme (yeşil=yasal) + Onayla/Döndür/İptal çalışıyor; görsel placeholder
 - [~] **⚖️ Dikenli tel (2-seg) yerleştirme UI** — aynı akış; görsel placeholder
