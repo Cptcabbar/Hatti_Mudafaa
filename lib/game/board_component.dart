@@ -81,6 +81,16 @@ class BoardComponent extends PositionComponent with TapCallbacks {
   /// Zerre çizimi için yeniden kullanılan boya (kare başına ayırma olmasın).
   final Paint _moteP = Paint();
 
+  /// Engel (mayın/tel) çizimlerinde yeniden kullanılan boyalar — mayın/tel
+  /// koyarken her kare onlarca `Paint()` ayırmak kasmaya yol açıyordu.
+  final Paint _scarFleckP = Paint()..color = const Color(0x553A3024);
+  final Paint _wireStrandP = Paint()..style = PaintingStyle.stroke;
+  final Paint _wireBarbP = Paint()..strokeWidth = 1.3;
+
+  /// Engel enkazının "dağılmış toprak" benekleri — çapa notasyonuna göre bir
+  /// kez üretilir (konumlar eğimden bağımsız, düzlem-uzayında sabittir).
+  final Map<String, List<(Offset, double)>> _scarFlecks = {};
+
   BoardMetrics? get metrics => _metrics;
 
   bool get _particlesOn => AppSettings.instance.particles.value;
@@ -1463,21 +1473,40 @@ class BoardComponent extends PositionComponent with TapCallbacks {
 
     if (ghost) return;
 
-    // Dağılmış toprak (kenar boyunca kısa çentikler).
+    // Dağılmış toprak (kenar boyunca kısa çentikler) — konumlar çapaya göre
+    // bir kez üretilip önbelleğe alınır (kare başına RNG + Random ayırma yok).
+    for (final (c, rr) in _flecksFor(b, a, z, w, cell)) {
+      canvas.drawCircle(c, rr, _scarFleckP);
+    }
+  }
+
+  List<(Offset, double)> _flecksFor(
+    Barrier b,
+    Offset a,
+    Offset z,
+    double w,
+    double cell,
+  ) {
+    final key = b.toNotation();
+    final cached = _scarFlecks[key];
+    if (cached != null) return cached;
+    final out = <(Offset, double)>[];
     final dir = z - a;
     final len = dir.distance;
-    if (len < 1) return;
-    final u = dir / len;
-    final perp = Offset(-u.dy, u.dx);
-    final rnd = math.Random(b.toNotation().hashCode);
-    final fleck = Paint()..color = const Color(0x553A3024);
-    final count = math.max(3, (len / (cell * 0.2)).round());
-    for (var i = 0; i < count; i++) {
-      final base = Offset.lerp(a, z, (i + 0.5) / count)!;
-      final s = rnd.nextBool() ? 1.0 : -1.0;
-      final off = perp * s * (w * 0.45 + rnd.nextDouble() * cell * 0.13);
-      canvas.drawCircle(base + off, 1 + rnd.nextDouble() * 1.7, fleck);
+    if (len >= 1) {
+      final u = dir / len;
+      final perp = Offset(-u.dy, u.dx);
+      final rnd = math.Random(key.hashCode);
+      final count = math.max(3, (len / (cell * 0.2)).round());
+      for (var i = 0; i < count; i++) {
+        final base = Offset.lerp(a, z, (i + 0.5) / count)!;
+        final s = rnd.nextBool() ? 1.0 : -1.0;
+        final off = perp * s * (w * 0.45 + rnd.nextDouble() * cell * 0.13);
+        out.add((base + off, 1 + rnd.nextDouble() * 1.7));
+      }
     }
+    _scarFlecks[key] = out;
+    return out;
   }
 
   /// Mayın: toprağa gömülü **alçak** zeytin disk (miğferden ayrışsın diye
@@ -1514,14 +1543,16 @@ class BoardComponent extends PositionComponent with TapCallbacks {
     final w = r * 2.0;
     final h = r * 0.9 * vRatio + r * 0.16;
 
+    // Toprak yatağı — bake edilmiş ışık lekesi (kare başına `MaskFilter.blur`
+    // yerine; birden çok mayın varken kasmayı önler).
     canvas
-      // Toprak yatağı.
-      ..drawOval(
-        Rect.fromCenter(center: ms, width: w * 1.3, height: h * 1.35),
-        Paint()
-          ..color = const Color(0x66241B10)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
-      )
+      ..save()
+      ..translate(ms.dx, ms.dy)
+      ..scale(1.0, (h * 1.35) / (w * 1.3));
+    _glowBlob(canvas, Offset.zero, w * 0.65, const Color(0x66241B10));
+    canvas.restore();
+
+    canvas
       // Gövde yan yüzü (koyu, hafif "aşağı").
       ..drawOval(
         Rect.fromCenter(
@@ -1643,7 +1674,12 @@ class BoardComponent extends PositionComponent with TapCallbacks {
         );
     }
 
-    // Teller (bitişik direk tepeleri arası, sarkan).
+    // Teller (bitişik direk tepeleri arası, sarkan). Boyalar bir kez ayarlanır
+    // (kare başına ~90 `Paint()` ayırması kasmaya yol açıyordu).
+    final strandP = _wireStrandP
+      ..strokeWidth = 1.9 * scMid.clamp(0.7, 1.5)
+      ..color = wireC;
+    final barbP = _wireBarbP..color = wireC;
     for (var i = 0; i < tops.length - 1; i++) {
       final p0 = tops[i];
       final p1 = tops[i + 1];
@@ -1657,23 +1693,14 @@ class BoardComponent extends PositionComponent with TapCallbacks {
           Path()
             ..moveTo(c0.dx, c0.dy)
             ..quadraticBezierTo(ctrl.dx, ctrl.dy, c1.dx, c1.dy),
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.9 * scMid.clamp(0.7, 1.5)
-            ..color = wireC,
+          strandP,
         );
+        final s = 3.0 * scMid.clamp(0.7, 1.5);
         for (var t = 0.14; t < 0.93; t += 0.2) {
           final bp = _quadPoint(c0, ctrl, c1, t);
-          final s = 3.0 * scMid.clamp(0.7, 1.5);
           canvas
-            ..drawLine(bp + Offset(-s, -s), bp + Offset(s, s),
-                Paint()
-                  ..strokeWidth = 1.3
-                  ..color = wireC)
-            ..drawLine(bp + Offset(-s, s), bp + Offset(s, -s),
-                Paint()
-                  ..strokeWidth = 1.3
-                  ..color = wireC);
+            ..drawLine(bp + Offset(-s, -s), bp + Offset(s, s), barbP)
+            ..drawLine(bp + Offset(-s, s), bp + Offset(s, -s), barbP);
         }
       }
     }
