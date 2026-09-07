@@ -1847,6 +1847,13 @@ class BoardComponent extends PositionComponent with TapCallbacks {
     final us = _tilt >= 0 ? 1.0 : -1.0;
     final flip = us < 0 ? math.pi : 0.0;
 
+    // Ortak çelik miğfer + tarafın soluk boyasından hafif bir renk katkısı
+    // (parlak takım rengi değil — bakınca ayırt edilir, sahneden kopmaz).
+    final lit = Color.lerp(_Faction.steelLit, fac.paint, 0.18)!;
+    final mid = Color.lerp(_Faction.steelMid, fac.paint, 0.26)!;
+    final dark = Color.lerp(_Faction.steelDark, fac.paint, 0.24)!;
+    final brimCol = Color.lerp(_Faction.steelBrim, fac.paint, 0.30)!;
+
     final brimC = Offset(gs.dx, gs.dy + _liftY(r * 0.5));
     final domeC = Offset(gs.dx, gs.dy + _liftY(r * 0.5 + rh * 0.58));
 
@@ -1893,7 +1900,7 @@ class BoardComponent extends PositionComponent with TapCallbacks {
           ..shader = Gradient.radial(
             domeC + Offset(-rh * 0.36 * us, -rh * 0.42 * us),
             rh * 1.9,
-            [fac.lit, fac.mid, fac.dark],
+            [lit, mid, dark],
             const [0.0, 0.46, 1.0],
           ),
       )
@@ -1921,6 +1928,40 @@ class BoardComponent extends PositionComponent with TapCallbacks {
           ..color = const Color(0x9EF3ECDC),
       );
 
+    // 3b) Miğfere sürülmüş soluk tanım boyası bandı — tek belirgin ayırt edici
+    //     unsur (aynı biçim, yalnızca renk). Görünür kubbenin ortasında yatay,
+    //     kubbe eğrisini izleyen hafif "gülümseme"; kubbeye kırpılır, yıpranmış.
+    final bandCy = domeC.dy + _liftY(rh * 0.30);
+    final bandHalf = rh * 0.98;
+    final bandBow = rh * 0.34 * us;
+    final bandPath = Path()
+      ..moveTo(domeC.dx - bandHalf, bandCy)
+      ..quadraticBezierTo(
+          domeC.dx, bandCy + bandBow, domeC.dx + bandHalf, bandCy);
+    canvas
+      ..save()
+      ..clipPath(Path()..addOval(domeRect.deflate(rh * 0.03)))
+      ..drawPath(
+        bandPath,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = rh * 0.34
+          ..color = fac.paint.withValues(alpha: 0.9),
+      )
+      // Aşınma — bandın bir yanında soluk çizik.
+      ..drawPath(
+        Path()
+          ..moveTo(domeC.dx - bandHalf * 0.5, bandCy - bandBow * 0.12)
+          ..quadraticBezierTo(domeC.dx - bandHalf * 0.05,
+              bandCy + bandBow * 0.5, domeC.dx + bandHalf * 0.35, bandCy),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = rh * 0.05
+          ..strokeCap = StrokeCap.round
+          ..color = const Color(0x30F3ECDC),
+      )
+      ..restore();
+
     // 4) Siper (brim) — kubbenin alt kısmını örter.
     final brimRect = Rect.fromCenter(
       center: brimC,
@@ -1930,7 +1971,7 @@ class BoardComponent extends PositionComponent with TapCallbacks {
     canvas
       ..drawOval(brimRect.shift(Offset(0, -_liftY(r * 0.05))),
           Paint()..color = const Color(0x662A1C12))
-      ..drawOval(brimRect, Paint()..color = fac.brim)
+      ..drawOval(brimRect, Paint()..color = brimCol)
       ..drawArc(
         brimRect,
         math.pi * 1.1 + flip,
@@ -1987,25 +2028,27 @@ class _Mote {
   final bool ember;
 }
 
-/// Bir tarafın miğfer renk tonları (aynı form, farklı renk — [Faction] simetrik).
+/// Bir tarafın askeri. İki taraf da **aynı yıpranmış zeytin-çelik miğfer**
+/// (savaş alanına ait, mat, toz/is tonunda). Tek ayırt edici unsur miğfere
+/// sürülmüş **soluk tanım boyası** — parlak "takım rengi" mavi/kırmızı değil,
+/// soluk arduvaz / soluk pas kırmızısı. Renk hem kubbeye çok hafif bir katkı
+/// olarak hem de siperin üstündeki band olarak işler.
 class _Faction {
-  const _Faction(this.mid, this.lit, this.dark, this.brim);
+  const _Faction(this.paint);
 
-  final Color mid;
-  final Color lit;
-  final Color dark;
-  final Color brim;
+  /// Tarafın soluk tanım boyası — [_drawSoldier] hem hafif kubbe katkısı hem
+  /// de miğfer bandı için kullanır.
+  final Color paint;
 
-  static const p1 = _Faction(
-    Color(0xFF3E6E9E),
-    Color(0xFF6796C2),
-    Color(0xFF294C6E),
-    Color(0xFF32587E),
-  );
-  static const p2 = _Faction(
-    Color(0xFFA2433B),
-    Color(0xFFC96A5E),
-    Color(0xFF6F2C26),
-    Color(0xFF83352D),
-  );
+  /// Ortak miğfer tonları (yıpranmış zeytin-çelik) — iki taraf da aynı.
+  static const steelLit = Color(0xFF7C7E6C);
+  static const steelMid = Color(0xFF565749);
+  static const steelDark = Color(0xFF2E2F24);
+  static const steelBrim = Color(0xFF383A2E);
+
+  /// Mavi taraf — soluk arduvaz.
+  static const p1 = _Faction(Color(0xFF47607A));
+
+  /// Kırmızı taraf — soluk pas kırmızısı.
+  static const p2 = _Faction(Color(0xFF8A4A3E));
 }
