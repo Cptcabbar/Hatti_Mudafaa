@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../settings.dart';
 import 'app_theme.dart';
+import 'ash_fall.dart';
 import 'game_screen.dart';
 import 'theme_backdrop.dart';
 
@@ -9,15 +10,6 @@ import 'theme_backdrop.dart';
 /// Yapay zeka ve online sonraki fazlarda.
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
-
-  void _startLocalGame(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (context) =>
-            GameScreen(timed: AppSettings.instance.timed.value),
-      ),
-    );
-  }
 
   void _openSettings(BuildContext context) {
     showModalBottomSheet<void>(
@@ -35,6 +27,13 @@ class HomeScreen extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           const ThemeBackdrop(),
+          // Sahnenin üstüne düşen kül / kor — oyun içindeki efektin menü
+          // karşılığı. "Partiküller" kapalıyken hiç kurulmaz (Ticker da yok).
+          ValueListenableBuilder<bool>(
+            valueListenable: AppSettings.instance.particles,
+            builder: (context, on, _) =>
+                on ? const AshFall() : const SizedBox.shrink(),
+          ),
           SafeArea(
             child: Center(
               child: ConstrainedBox(
@@ -44,11 +43,18 @@ class HomeScreen extends StatelessWidget {
                   child: Column(
                     children: [
                       const Spacer(flex: 3),
-                      const _TitleBlock(),
-                      const SizedBox(height: 56),
-                      _PlayButton(onPressed: () => _startLocalGame(context)),
-                      const SizedBox(height: 16),
-                      const _TimedToggle(),
+                      const _MenuEntrance(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _TitleBlock(),
+                            SizedBox(height: 56),
+                            _PlayButton(),
+                            SizedBox(height: 16),
+                            _TimedToggle(),
+                          ],
+                        ),
+                      ),
                       const Spacer(flex: 4),
                     ],
                   ),
@@ -75,16 +81,23 @@ class HomeScreen extends StatelessWidget {
 
 /// Ana eylem — "saha tabelası": köşeli, amber, alt kenarı kalın (basılı his).
 class _PlayButton extends StatelessWidget {
-  const _PlayButton({required this.onPressed});
+  const _PlayButton();
 
-  final VoidCallback onPressed;
+  void _startLocalGame(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) =>
+            GameScreen(timed: AppSettings.instance.timed.value),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Material(
       color: AppPalette.amber,
       child: InkWell(
-        onTap: onPressed,
+        onTap: () => _startLocalGame(context),
         child: Container(
           decoration: const BoxDecoration(
             border: Border(
@@ -104,6 +117,31 @@ class _PlayButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Menü açılışında başlık + butonları bir kez yumuşakça belirtir (opaklık +
+/// hafif yükseliş). Tek atış — [TweenAnimationBuilder] ilk kuruluşta çalışır.
+class _MenuEntrance extends StatelessWidget {
+  const _MenuEntrance({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 520),
+      curve: Curves.easeOut,
+      builder: (context, v, child) => Opacity(
+        opacity: v.clamp(0.0, 1.0),
+        child: Transform.translate(
+          offset: Offset(0, (1 - v) * 12),
+          child: child,
+        ),
+      ),
+      child: child,
     );
   }
 }
