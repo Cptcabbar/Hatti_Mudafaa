@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
 
@@ -228,16 +229,61 @@ class BoardComponent extends PositionComponent with TapCallbacks {
     );
   }
 
+  /// Eğim şu an hedefe doğru animasyonlanıyor mu (sıra değişimi dönüşü)?
+  /// Dönüş sırasında ağır blit'ler daha ucuz kaliteyle çizilir.
+  bool _tiltAnimating = false;
+
+  // --- Onscreen shader priming -----------------------------------------------
+  // İlk kareler boyunca eğimi tüm aralıkta gezdir + sahte engel/önizleme çiz;
+  // böylece sıra değişimi dönüşünde kullanılan HER shader, yükleme ekranı
+  // hâlâ önü kapatırken canlı (ekran) GPU boru hattında derlenip cache'lenir.
+  // `toImageSync` ısıtması ayrı bir surface kullandığından bu şart.
+  final Completer<void> _primeDone = Completer<void>();
+  Future<void> get primeReady => _primeDone.future;
+  bool get _priming => !_primeDone.isCompleted;
+  int _primeStep = -1;
+  static const List<double> _primeTilts = [
+    1.0, 0.5, 0.0, -0.5, -1.0, 0.0, 1.0,
+  ];
+
+  static const Barrier _primeMine = Barrier(
+    type: BarrierType.mine,
+    orientation: BarrierOrientation.horizontal,
+    anchor: Square(3, 3),
+  );
+  static const Barrier _primeWire = Barrier(
+    type: BarrierType.wire,
+    orientation: BarrierOrientation.vertical,
+    anchor: Square(2, 3),
+  );
+
   @override
   void update(double dt) {
     super.update(dt);
     _t += dt;
+
+    if (_priming) {
+      _primeStep++;
+      if (_primeStep >= _primeTilts.length) {
+        _tilt = _targetTilt;
+        _rebuildProjection();
+        _primeDone.complete();
+      } else {
+        _tilt = _primeTilts[_primeStep];
+        _rebuildProjection();
+        return; // ısınma bitene kadar normal eğim yumuşatmasını atla
+      }
+    }
+
     final target = _targetTilt;
     if ((_tilt - target).abs() > 1e-4) {
       // yumuşak, ~0.35 sn oturan yaklaşım
       _tilt += (target - _tilt) * math.min(1.0, dt * 8.0);
       if ((_tilt - target).abs() <= 1e-4) _tilt = target;
+      _tiltAnimating = _tilt != target;
       _rebuildProjection();
+    } else if (_tiltAnimating) {
+      _tiltAnimating = false;
     }
   }
 
@@ -277,7 +323,11 @@ class BoardComponent extends PositionComponent with TapCallbacks {
         img,
         Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()),
         Rect.fromLTWH(0, 0, side, side),
-        Paint()..filterQuality = FilterQuality.medium,
+        // Dönüş sırasında perspektif-bükümlü blit'i ucuz tut (fark gözle
+        // seçilmez); tahta dururken netlik için `.medium`.
+        Paint()
+          ..filterQuality =
+              _tiltAnimating ? FilterQuality.low : FilterQuality.medium,
       );
     } else {
       canvas.drawRect(
@@ -389,6 +439,17 @@ class BoardComponent extends PositionComponent with TapCallbacks {
 
     // Sahanın üstüne düşen kül / kor — tahtanın ve taşların üstünde.
     _drawAshOverlay(canvas);
+
+    // Isınma: engel + önizleme (yeşil/kırmızı) shader'larını da canlı boru
+    // hattında derlet — yükleme ekranı önü kapatırken, görünmez.
+    if (_priming) {
+      for (final pv in const [false, true]) {
+        _drawMine(canvas, m, proj, _primeMine, preview: pv, ok: pv);
+        _drawWire(canvas, m, proj, _primeWire, preview: pv, ok: !pv);
+      }
+      _drawBarrierScar(canvas, m, _primeMine);
+      _drawBarrierScar(canvas, m, _primeWire, ghost: true);
+    }
 
     // Çevre vinyeti — köşeleri hafifçe karart (en üstte, çok hafif). Shader
     // yalnızca boyut değişince yeniden kurulur (kare başına ayırma yok).

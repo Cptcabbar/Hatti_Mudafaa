@@ -36,8 +36,13 @@ class _GameScreenState extends State<GameScreen> {
     controller = GameController(timed: widget.timed);
     game = HattiBoardGame(controller, hotSeat: widget.hotSeat);
     controller.addListener(_onControllerChange);
-    // Flame sahnesi yüklenene kadar ortak yükleme görünümü tam ekran örtsün.
-    game.loaded.then((_) {
+    // Flame sahnesi yüklenene + shader ısınması (ilk kareler eğimi tüm aralıkta
+    // gezdirir) bitene kadar ortak yükleme görünümü tam ekran örtsün — böylece
+    // ilk sıra değişimi dönüşünde shader derleme takılması görünmez.
+    game.loaded.then((_) async {
+      try {
+        await game.board.primeReady.timeout(const Duration(seconds: 4));
+      } catch (_) {}
       if (mounted) setState(() => _sceneReady = true);
     });
   }
@@ -176,11 +181,20 @@ class _PlayerPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Her iki gövde de ağaçta kalır (yalnızca görünürlük değişir) — sıra
+    // değişince panel alt ağacı sıfırdan kurulup düzenlenmez; ilk dönüşteki
+    // takılmayı azaltır.
     final body = AnimatedSize(
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOut,
       alignment: Alignment.center,
-      child: _active ? _activeBody(context) : _foldedBody(context),
+      child: Stack(
+        alignment: Alignment.topCenter,
+        children: [
+          Offstage(offstage: _active, child: _foldedBody(context)),
+          Offstage(offstage: !_active, child: _activeBody(context)),
+        ],
+      ),
     );
     return Material(
       color: _color.withValues(alpha: _active ? 0.14 : 0.06),
