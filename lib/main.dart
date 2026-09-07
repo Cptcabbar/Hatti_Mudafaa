@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'settings.dart';
+import 'ui/app_theme.dart';
 import 'ui/home_screen.dart';
 import 'ui/loading_view.dart';
 
@@ -22,13 +23,7 @@ class HattiMudafaaApp extends StatelessWidget {
     return MaterialApp(
       title: 'Hattı Müdafaa',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF4B5320), // asker yeşili — geçici
-          brightness: Brightness.dark,
-        ),
-      ),
+      theme: buildAppTheme(),
       home: const _Bootstrap(),
     );
   }

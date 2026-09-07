@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../settings.dart';
+import 'app_theme.dart';
 import 'game_screen.dart';
 import 'theme_backdrop.dart';
 
@@ -45,21 +46,7 @@ class HomeScreen extends StatelessWidget {
                       const Spacer(flex: 3),
                       const _TitleBlock(),
                       const SizedBox(height: 56),
-                      FilledButton(
-                        onPressed: () => _startLocalGame(context),
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 40,
-                            vertical: 16,
-                          ),
-                          textStyle: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                        child: const Text('YEREL OYNA'),
-                      ),
+                      _PlayButton(onPressed: () => _startLocalGame(context)),
                       const SizedBox(height: 16),
                       const _TimedToggle(),
                       const Spacer(flex: 4),
@@ -76,11 +63,46 @@ class HomeScreen extends StatelessWidget {
                 tooltip: 'Ayarlar',
                 onPressed: () => _openSettings(context),
                 icon: const Icon(Icons.settings_outlined),
-                color: const Color(0xFFB7AE97),
+                color: AppPalette.text,
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Ana eylem — "saha tabelası": köşeli, amber, alt kenarı kalın (basılı his).
+class _PlayButton extends StatelessWidget {
+  const _PlayButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppPalette.amber,
+      child: InkWell(
+        onTap: onPressed,
+        child: Container(
+          decoration: const BoxDecoration(
+            border: Border(
+              top: BorderSide(color: Color(0x33FFFFFF)),
+              bottom: BorderSide(color: AppPalette.amberDim, width: 3),
+            ),
+          ),
+          padding: const EdgeInsets.fromLTRB(46, 15, 46, 13),
+          child: const Text(
+            'YEREL OYNA',
+            style: TextStyle(
+              color: Color(0xFF201404),
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 3,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -96,7 +118,7 @@ class _TitleBlock extends StatelessWidget {
       height: 1.05,
       fontWeight: FontWeight.w800,
       letterSpacing: 10,
-      color: Color(0xFFEDE7D6),
+      color: AppPalette.title,
     );
     return Column(
       children: [
@@ -164,21 +186,32 @@ class _TimedToggle extends StatelessWidget {
     return ValueListenableBuilder<bool>(
       valueListenable: timed,
       builder: (context, value, _) => Material(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(24),
+        color: AppPalette.surface,
+        borderRadius: BorderRadius.circular(4),
         child: InkWell(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(4),
           onTap: () => timed.value = !value,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(18, 6, 10, 6),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: AppPalette.line),
+            ),
+            padding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.timer_outlined, size: 18),
+                const Icon(
+                  Icons.timer_outlined,
+                  size: 18,
+                  color: AppPalette.text,
+                ),
                 const SizedBox(width: 10),
                 const Text(
                   'Süreli mod',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: AppPalette.text,
+                  ),
                 ),
                 const SizedBox(width: 6),
                 Switch(
@@ -217,7 +250,7 @@ class _SettingsSheet extends StatelessWidget {
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 4,
-                  color: Color(0xFFB7AE97),
+                  color: AppPalette.text,
                 ),
               ),
             ),
@@ -266,7 +299,7 @@ class _SettingRow extends StatelessWidget {
       builder: (context, value, _) => SwitchListTile(
         value: value,
         onChanged: (v) => notifier.value = v,
-        secondary: Icon(icon, color: const Color(0xFFB7AE97)),
+        secondary: Icon(icon, color: AppPalette.text),
         title: Text(
           label,
           style: const TextStyle(fontWeight: FontWeight.w600),
