@@ -92,6 +92,22 @@ class BoardComponent extends PositionComponent with TapCallbacks {
   /// kez üretilir (konumlar eğimden bağımsız, düzlem-uzayında sabittir).
   final Map<String, List<(Offset, double)>> _scarFlecks = {};
 
+  // --- Hamle / engel animasyonları -------------------------------------------
+  /// Piyonun ekranda gösterilen mantıksal karesi (kayma bitince güncellenir).
+  Square? _shownP1;
+  Square? _shownP2;
+
+  /// Süren kaymanın başlangıcı (düz tahta) + ilerleme 0..1.
+  final Map<Player, Offset> _pawnFrom = {};
+  final Map<Player, double> _pawnT = {Player.p1: 1, Player.p2: 1};
+
+  /// Yeni konan engelin "beliriş" ilerlemesi 0..1 (notasyona göre).
+  final Map<String, double> _barrierT = {};
+
+  /// Geçici toz bulutları (adım / engel koyma). Ekran uzayında değil — düz
+  /// tahta konumunda tutulur, çizerken projeksiyondan geçer.
+  final List<_Dust> _dust = [];
+
   BoardMetrics? get metrics => _metrics;
 
   bool get _particlesOn => AppSettings.instance.particles.value;
@@ -331,6 +347,172 @@ class BoardComponent extends PositionComponent with TapCallbacks {
     } else if (_tiltAnimating) {
       _tiltAnimating = false;
     }
+
+    _advanceAnimations(dt);
+  }
+
+  // --- Hamle / engel animasyonları ------------------------------------------
+
+  static double _easeOutCubic(double x) {
+    final u = 1 - x;
+    return 1 - u * u * u;
+  }
+
+  /// Durumu bir önceki kareyle karşılaştırır; piyon karesi değişince kaydırma
+  /// başlatır, yeni engel için beliriş sayacı açar, biten animasyonlarda toz
+  /// bırakır, ölü tozu siler. Ucuz — kare başına birkaç lerp + birkaç daire.
+  void _advanceAnimations(double dt) {
+    final m = _metrics;
+    if (m == null) return;
+    final st = controller.state;
+
+    _advancePawn(Player.p1, st.pawnP1, m, dt);
+    _advancePawn(Player.p2, st.pawnP2, m, dt);
+
+    final live = <String>{};
+    for (final b in st.barriers) {
+      final key = b.toNotation();
+      live.add(key);
+      final cur = _barrierT[key];
+      if (cur == null) {
+        _barrierT[key] = 0;
+        if (_particlesOn) _spawnBarrierDust(b, m);
+      } else if (cur < 1) {
+        _barrierT[key] = math.min(1.0, cur + dt / 0.24);
+      }
+    }
+    _barrierT.removeWhere((k, _) => !live.contains(k));
+
+    for (final d in _dust) {
+      d.age += dt;
+    }
+    _dust.removeWhere((d) => d.age >= d.life);
+  }
+
+  void _advancePawn(Player p, Square now, BoardMetrics m, double dt) {
+    final shown = p == Player.p1 ? _shownP1 : _shownP2;
+    if (shown == null) {
+      _setShown(p, now);
+      _pawnT[p] = 1;
+      return;
+    }
+    if (shown != now) {
+      final fromC = m.cellCenter(shown);
+      final toC = m.cellCenter(now);
+      _setShown(p, now);
+      if ((fromC - toC).distance > m.cell * 1.9) {
+        _pawnT[p] = 1; // uzak sıçrama (restart) — anında
+      } else {
+        _pawnFrom[p] = fromC;
+        _pawnT[p] = 0;
+      }
+    }
+    final t = _pawnT[p]!;
+    if (t < 1) {
+      final nt = math.min(1.0, t + dt / 0.2);
+      _pawnT[p] = nt;
+      if (nt >= 1 && _particlesOn) {
+        _spawnStepDust(m.cellCenter(now), _pawnFrom[p] ?? m.cellCenter(now), m);
+      }
+    }
+  }
+
+  void _setShown(Player p, Square s) {
+    if (p == Player.p1) {
+      _shownP1 = s;
+    } else {
+      _shownP2 = s;
+    }
+  }
+
+  /// Piyonun o an çizileceği düz-tahta merkezi (kayma sırasında lerp).
+  Offset _pawnFlatCenter(Player p, BoardMetrics m) {
+    final now = m.cellCenter(
+        p == Player.p1 ? controller.state.pawnP1 : controller.state.pawnP2);
+    final t = _pawnT[p] ?? 1;
+    if (t >= 1) return now;
+    final from = _pawnFrom[p] ?? now;
+    return Offset.lerp(from, now, _easeOutCubic(t))!;
+  }
+
+  /// Kayan piyonun ekran-y zıplaması (0 → ~1 → 0).
+  double _pawnHop(Player p) {
+    final t = _pawnT[p] ?? 1;
+    if (t >= 1 || t <= 0) return 0;
+    return math.sin(t * math.pi);
+  }
+
+  void _spawnStepDust(Offset dest, Offset from, BoardMetrics m) {
+    final back = from - dest;
+    final dir = back.distance < 1e-3 ? Offset.zero : back / back.distance;
+    final rnd = math.Random(dest.dx.toInt() * 31 + dest.dy.toInt());
+    for (var i = 0; i < 5; i++) {
+      final along = dir * (m.cell * 0.09 * i);
+      final jitter = Offset(rnd.nextDouble() - 0.5, rnd.nextDouble() - 0.5) *
+          (m.cell * 0.2);
+      _dust.add(_Dust(
+        dest + along + jitter,
+        0.34 + rnd.nextDouble() * 0.22,
+        const Color(0xFF7A6B4E),
+      ));
+    }
+  }
+
+  void _spawnBarrierDust(Barrier b, BoardMetrics m) {
+    final (a, z) = m.barrierLine(b);
+    final rnd = math.Random(b.toNotation().hashCode);
+    final n = b.isWire ? 8 : 5;
+    for (var i = 0; i < n; i++) {
+      final base = Offset.lerp(a, z, n == 1 ? 0.5 : i / (n - 1))!;
+      final jitter = Offset(rnd.nextDouble() - 0.5, rnd.nextDouble() - 0.5) *
+          (m.cell * 0.24);
+      _dust.add(_Dust(
+        base + jitter,
+        0.4 + rnd.nextDouble() * 0.26,
+        const Color(0xFF6B6252),
+      ));
+    }
+  }
+
+  /// Beliriş sürerken engeli ölçekleyerek çizer (mayın/tel aynı: hızlı büyür).
+  void _drawBarrierGrowing(
+    Canvas canvas,
+    BoardMetrics m,
+    BoardProjection proj,
+    Barrier b,
+    double grow,
+  ) {
+    void paintIt() {
+      if (b.isWire) {
+        _drawWire(canvas, m, proj, b);
+      } else {
+        _drawMine(canvas, m, proj, b, preview: false, ok: true);
+      }
+    }
+
+    if (grow >= 0.999) {
+      paintIt();
+      return;
+    }
+    final (a, z) = m.barrierLine(b);
+    final mid = _p(Offset.lerp(a, z, 0.5)!);
+    final s = 0.35 + 0.65 * _easeOutCubic(grow);
+    canvas
+      ..save()
+      ..translate(mid.dx, mid.dy)
+      ..scale(s)
+      ..translate(-mid.dx, -mid.dy);
+    paintIt();
+    canvas.restore();
+  }
+
+  void _drawDust(Canvas canvas, BoardMetrics m, BoardProjection proj, _Dust d) {
+    final k = (d.age / d.life).clamp(0.0, 1.0);
+    final sc = proj.scaleAt(d.flat);
+    final gs = _p(d.flat) - Offset(0, k * m.cell * 0.16 * sc);
+    final r = m.cell * (0.05 + 0.20 * k) * sc;
+    final fade = (1 - k) * (1 - k);
+    _glowBlob(canvas, gs, r, d.tint.withValues(alpha: 0.5 * fade));
   }
 
   /// Düz tahta pikseli → viewport pikseli.
@@ -409,9 +591,10 @@ class BoardComponent extends PositionComponent with TapCallbacks {
       }
     }
 
-    // Aktif askerin zemin nişanı (düzlemde — eğimle elips olur).
+    // Aktif askerin zemin nişanı (düzlemde — eğimle elips olur). Asker
+    // kayarken (ör. geri al) nişan onunla birlikte gelir.
     if (!state.isOver) {
-      final ac = m.cellCenter(state.pawnOf(state.turn));
+      final ac = _pawnFlatCenter(state.turn, m);
       final rr = cell * 0.40;
       final reticle = Paint()
         ..style = PaintingStyle.stroke
@@ -452,21 +635,28 @@ class BoardComponent extends PositionComponent with TapCallbacks {
     for (final b in state.barriers) {
       final (a, z) = m.barrierLine(b);
       final mid = Offset.lerp(a, z, 0.5)!;
+      final grow = _barrierT[b.toNotation()] ?? 1.0;
       items.add((
         depth: depthOf(mid),
-        draw: () => b.isWire
-            ? _drawWire(canvas, m, proj, b)
-            : _drawMine(canvas, m, proj, b, preview: false, ok: true),
+        draw: () => _drawBarrierGrowing(canvas, m, proj, b, grow),
       ));
     }
+    // Geçici toz bulutları (adım / engel koyma) — kendi derinliğinde.
+    for (final d in _dust) {
+      items.add((depth: depthOf(d.flat), draw: () => _drawDust(canvas, m, proj, d)));
+    }
+    final p1c = _pawnFlatCenter(Player.p1, m);
+    final p2c = _pawnFlatCenter(Player.p2, m);
     items
       ..add((
-        depth: depthOf(m.cellCenter(state.pawnP1)) + cell * 0.02,
-        draw: () => _drawSoldier(canvas, m, proj, state.pawnP1, _Faction.p1),
+        depth: depthOf(p1c) + cell * 0.02,
+        draw: () => _drawSoldier(canvas, m, proj, p1c, _Faction.p1,
+            hop: _pawnHop(Player.p1)),
       ))
       ..add((
-        depth: depthOf(m.cellCenter(state.pawnP2)) + cell * 0.02,
-        draw: () => _drawSoldier(canvas, m, proj, state.pawnP2, _Faction.p2),
+        depth: depthOf(p2c) + cell * 0.02,
+        draw: () => _drawSoldier(canvas, m, proj, p2c, _Faction.p2,
+            hop: _pawnHop(Player.p2)),
       ))
       ..sort((x, y) => x.depth.compareTo(y.depth));
     for (final it in items) {
@@ -1833,12 +2023,14 @@ class BoardComponent extends PositionComponent with TapCallbacks {
     Canvas canvas,
     BoardMetrics m,
     BoardProjection proj,
-    Square sq,
-    _Faction fac,
-  ) {
-    final g = m.cellCenter(sq);
-    final gs = _p(g);
+    Offset g,
+    _Faction fac, {
+    double hop = 0,
+  }) {
     final sc = proj.scaleAt(g);
+    // Gölge yerde kalır; figür (mevzi + miğfer) adım sırasında hop kadar zıplar.
+    final gsGround = _p(g);
+    final gs = gsGround - Offset(0, hop * m.cell * 0.13 * sc);
     final vRatio = (proj.verticalScaleAt(g) / sc).clamp(0.25, 1.0);
     final r = m.cell * 0.36 * sc;
     final rh = r * 0.92;
@@ -1857,11 +2049,17 @@ class BoardComponent extends PositionComponent with TapCallbacks {
     final brimC = Offset(gs.dx, gs.dy + _liftY(r * 0.5));
     final domeC = Offset(gs.dx, gs.dy + _liftY(r * 0.5 + rh * 0.58));
 
-    // 1) Zemin gölgesi — bake edilmiş ışık lekesi (koyu), blur yok.
+    // 1) Zemin gölgesi — bake edilmiş ışık lekesi (koyu), blur yok. Ayak
+    //    yerden kalkınca (hop) küçülür + soluklaşır.
     canvas.save();
-    canvas.translate(gs.dx, gs.dy);
+    canvas.translate(gsGround.dx, gsGround.dy);
     canvas.scale(1.0, vRatio * 0.5);
-    _glowBlob(canvas, Offset.zero, r * 1.5, const Color(0x82000000));
+    _glowBlob(
+      canvas,
+      Offset.zero,
+      r * 1.5 * (1 - 0.22 * hop),
+      Color.fromRGBO(0, 0, 0, 0.51 * (1 - 0.35 * hop)),
+    );
     canvas.restore();
 
     // 2) Kazılı mevzi tabanı (yerde).
@@ -2026,6 +2224,21 @@ class _Mote {
 
   /// `true` ise soluk turuncu kor (titreşen), değilse gri kül.
   final bool ember;
+}
+
+/// Adım / engel koyma sırasında yerden kalkan tek bir toz bulutu. Konum düz
+/// tahta uzayında; büyürken yükselir + soluklaşır (`age`/`life`).
+class _Dust {
+  _Dust(this.flat, this.life, this.tint);
+
+  /// Düz tahta konumu (çizerken projeksiyondan geçer).
+  final Offset flat;
+
+  /// Ömür (sn) ve tonu.
+  final double life;
+  final Color tint;
+
+  double age = 0;
 }
 
 /// Bir tarafın askeri. İki taraf da **aynı yıpranmış zeytin-çelik miğfer**
