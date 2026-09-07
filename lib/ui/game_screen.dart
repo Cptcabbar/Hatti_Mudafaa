@@ -114,9 +114,13 @@ class _GameScreenState extends State<GameScreen> {
             Expanded(
               child: Stack(
                 children: [
+                  // Flame tuvali kendini kırpmaz; çevre katmanları (gökyüzü,
+                  // ufuk parıltısı, silüet, vinyet) uzak kenarın ötesine taşar.
+                  // ClipRect olmadan bu koyu katmanlar panellerin üstüne sarkıp
+                  // butonları karartıyordu.
                   Padding(
                     padding: const EdgeInsets.all(8),
-                    child: GameWidget(game: game),
+                    child: ClipRect(child: GameWidget(game: game)),
                   ),
                   Positioned(
                     left: 4,
