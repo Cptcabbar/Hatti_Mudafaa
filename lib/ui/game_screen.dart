@@ -566,27 +566,27 @@ class _SupplyPainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
     final cx = w / 2;
-    final bw = w * 0.62;
+    final bw = w * 0.54;
     final l = cx - bw / 2;
     final r = cx + bw / 2;
     final body = Paint()..color = color;
-    // Mermi gövdesi: sivri uç + silindirik gövde + düz taban.
+    // Mermi gövdesi: sivri ogiv uç + silindirik gövde + düz taban.
     canvas.drawPath(
       Path()
-        ..moveTo(l, h * 0.34)
-        ..quadraticBezierTo(l, h * 0.04, cx, h * 0.03)
-        ..quadraticBezierTo(r, h * 0.04, r, h * 0.34)
-        ..lineTo(r, h * 0.90)
-        ..lineTo(l, h * 0.90)
+        ..moveTo(l, h * 0.40)
+        ..quadraticBezierTo(l, h * 0.06, cx, h * 0.02)
+        ..quadraticBezierTo(r, h * 0.06, r, h * 0.40)
+        ..lineTo(r, h * 0.88)
+        ..lineTo(l, h * 0.88)
         ..close(),
       body,
     );
     // Taban bileziği (biraz geniş).
-    canvas.drawRect(Rect.fromLTRB(l - w * 0.08, h * 0.88, r + w * 0.08, h), body);
+    canvas.drawRect(Rect.fromLTRB(l - w * 0.10, h * 0.86, r + w * 0.10, h), body);
     // Sürücü bandı — koyu kesik.
     canvas.drawRect(
-      Rect.fromLTRB(l, h * 0.60, r, h * 0.70),
-      Paint()..color = const Color(0xFF201404).withValues(alpha: 0.32),
+      Rect.fromLTRB(l, h * 0.58, r, h * 0.69),
+      Paint()..color = const Color(0xFF201404).withValues(alpha: 0.38),
     );
   }
 
@@ -617,27 +617,30 @@ class _MinePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
-    final h = size.height;
-    final c = Offset(w / 2, h * 0.64);
-    final rx = w * 0.42;
-    final ry = h * 0.20;
-    final prong = Paint()
+    final c = Offset(w / 2, size.height / 2);
+    final rad = w * 0.30;
+    // Tetik dikenleri — dışa taşan kısa çubuklar.
+    final spike = Paint()
       ..color = color
       ..strokeWidth = w * 0.09
       ..strokeCap = StrokeCap.round;
-    for (final a in const [-2.3, -math.pi / 2, -0.85]) {
+    for (var i = 0; i < 6; i++) {
+      final a = i * math.pi / 3 + math.pi / 6;
       final d = Offset(math.cos(a), math.sin(a));
-      canvas.drawLine(
-        c + Offset(d.dx * rx * 0.55, d.dy * ry * 0.55),
-        c + Offset(d.dx * rx * 0.7, d.dy * ry * 3.0),
-        prong,
-      );
+      canvas.drawLine(c + d * (rad * 0.85), c + d * (rad + w * 0.15), spike);
     }
-    canvas.drawOval(
-      Rect.fromCenter(center: c, width: rx * 2, height: ry * 2),
-      Paint()..color = color,
-    );
-    canvas.drawCircle(c, w * 0.08, Paint()..color = const Color(0xFF201404));
+    // Gövde (üstten görünüş) + basınç halkası + göbek.
+    canvas
+      ..drawCircle(c, rad, Paint()..color = color)
+      ..drawCircle(
+        c,
+        rad * 0.58,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = w * 0.06
+          ..color = const Color(0xFF201404).withValues(alpha: 0.45),
+      )
+      ..drawCircle(c, w * 0.09, Paint()..color = const Color(0xFF201404));
   }
 
   @override
@@ -668,28 +671,41 @@ class _WirePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
-    final baseY = h * 0.84;
-    final topY = h * 0.24;
-    final xs = [w * 0.16, w * 0.5, w * 0.84];
+    final baseY = h * 0.82;
+    final topY = h * 0.28;
+    final xs = [w * 0.15, w * 0.5, w * 0.85];
     final post = Paint()
       ..color = color
-      ..strokeWidth = w * 0.08
+      ..strokeWidth = w * 0.09
       ..strokeCap = StrokeCap.round;
     for (final x in xs) {
       canvas.drawLine(Offset(x, baseY), Offset(x, topY), post);
     }
-    final strand = Paint()
+    final wire = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = w * 0.05;
-    for (var i = 0; i < xs.length - 1; i++) {
+      ..strokeWidth = w * 0.055;
+    for (final yf in const [0.40, 0.62]) {
+      final y = h * yf;
       canvas.drawPath(
         Path()
-          ..moveTo(xs[i], topY)
-          ..quadraticBezierTo(
-              (xs[i] + xs[i + 1]) / 2, topY + h * 0.20, xs[i + 1], topY),
-        strand,
+          ..moveTo(xs.first, y)
+          ..quadraticBezierTo(w * 0.5, y + h * 0.07, xs.last, y),
+        wire,
       );
+    }
+    // Birkaç diken (X).
+    final barb = Paint()
+      ..color = color
+      ..strokeWidth = w * 0.05
+      ..strokeCap = StrokeCap.round;
+    for (final bx in [w * 0.33, w * 0.67]) {
+      const by = 0.45;
+      final p = Offset(bx, h * by);
+      final s = w * 0.06;
+      canvas
+        ..drawLine(p + Offset(-s, -s), p + Offset(s, s), barb)
+        ..drawLine(p + Offset(-s, s), p + Offset(s, -s), barb);
     }
   }
 
