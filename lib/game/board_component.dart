@@ -207,29 +207,53 @@ class BoardComponent extends PositionComponent with TapCallbacks {
       }
     }
 
-    // Yerleştirilmiş engeller + önizleme (zemin düzleminde).
-    for (final b in state.barriers) {
-      _drawBarrierFlat(canvas, m, b, preview: false, ok: true);
-    }
+    // Engel yer izleri — kazılmış toprak (zemin düzleminde).
     final preview = controller.preview;
+    for (final b in state.barriers) {
+      _drawBarrierScar(canvas, m, b);
+    }
     if (preview != null) {
-      _drawBarrierFlat(canvas, m, preview,
-          preview: true, ok: controller.canConfirmPreview);
+      _drawBarrierScar(canvas, m, preview, ghost: true);
     }
 
     canvas.restore();
 
-    // --- Askerler: billboard (ekran uzayı) ---
-    // Uzaktaki önce (derinlik sıralaması eğime göre).
-    final p1Far = _tilt >= 0;
-    void drawP1() => _drawSoldier(canvas, m, proj, state.pawnP1, _Faction.p1);
-    void drawP2() => _drawSoldier(canvas, m, proj, state.pawnP2, _Faction.p2);
-    if (p1Far) {
-      drawP1();
-      drawP2();
-    } else {
-      drawP2();
-      drawP1();
+    // --- Dikey öğeler: derinliğe göre sıralı billboard ---
+    double depthOf(Offset flat) => _tilt >= 0 ? flat.dy : -flat.dy;
+    final items = <({double depth, void Function() draw})>[];
+
+    for (final b in state.barriers) {
+      final (a, z) = m.barrierLine(b);
+      final mid = Offset.lerp(a, z, 0.5)!;
+      items.add((
+        depth: depthOf(mid),
+        draw: () => b.isWire
+            ? _drawWire(canvas, m, proj, b)
+            : _drawMine(canvas, m, proj, b, preview: false, ok: true),
+      ));
+    }
+    items
+      ..add((
+        depth: depthOf(m.cellCenter(state.pawnP1)),
+        draw: () => _drawSoldier(canvas, m, proj, state.pawnP1, _Faction.p1),
+      ))
+      ..add((
+        depth: depthOf(m.cellCenter(state.pawnP2)),
+        draw: () => _drawSoldier(canvas, m, proj, state.pawnP2, _Faction.p2),
+      ))
+      ..sort((x, y) => x.depth.compareTo(y.depth));
+    for (final it in items) {
+      it.draw();
+    }
+
+    // Önizleme cihazı — her zaman en üstte.
+    if (preview != null) {
+      final ok = controller.canConfirmPreview;
+      if (preview.isWire) {
+        _drawWire(canvas, m, proj, preview, preview: true, ok: ok);
+      } else {
+        _drawMine(canvas, m, proj, preview, preview: true, ok: ok);
+      }
     }
   }
 
@@ -457,34 +481,271 @@ class BoardComponent extends PositionComponent with TapCallbacks {
   // Dinamik katmanlar
   // ---------------------------------------------------------------------------
 
-  void _drawBarrierFlat(
+  /// Engelin altındaki kazılmış / bozulmuş toprak şeridi (zemin düzleminde).
+  void _drawBarrierScar(
     Canvas canvas,
     BoardMetrics m,
+    Barrier b, {
+    bool ghost = false,
+  }) {
+    final (a, z) = m.barrierLine(b);
+    final cell = m.cell;
+    final w = cell * 0.34;
+
+    canvas
+      ..drawLine(
+        a,
+        z,
+        Paint()
+          ..strokeCap = StrokeCap.round
+          ..strokeWidth = w
+          ..color = ghost ? const Color(0x1F000000) : const Color(0x5E241C12),
+      )
+      ..drawLine(
+        a,
+        z,
+        Paint()
+          ..strokeCap = StrokeCap.round
+          ..strokeWidth = w * 0.5
+          ..color = ghost ? const Color(0x14000000) : const Color(0x8C160F0A),
+      );
+
+    if (ghost) return;
+
+    // Dağılmış toprak (kenar boyunca kısa çentikler).
+    final dir = z - a;
+    final len = dir.distance;
+    if (len < 1) return;
+    final u = dir / len;
+    final perp = Offset(-u.dy, u.dx);
+    final rnd = math.Random(b.toNotation().hashCode);
+    final fleck = Paint()..color = const Color(0x553A3024);
+    final count = math.max(3, (len / (cell * 0.2)).round());
+    for (var i = 0; i < count; i++) {
+      final base = Offset.lerp(a, z, (i + 0.5) / count)!;
+      final s = rnd.nextBool() ? 1.0 : -1.0;
+      final off = perp * s * (w * 0.45 + rnd.nextDouble() * cell * 0.13);
+      canvas.drawCircle(base + off, 1 + rnd.nextDouble() * 1.7, fleck);
+    }
+  }
+
+  /// Mayın: toprağa yarı gömülü zeytin gövde + basınç plakası + tetik çubukları
+  /// + amber tehlike işareti. Billboard.
+  void _drawMine(
+    Canvas canvas,
+    BoardMetrics m,
+    BoardProjection proj,
     Barrier b, {
     required bool preview,
     required bool ok,
   }) {
     final (a, z) = m.barrierLine(b);
-    final w = m.cell * 0.16;
+    final mid = Offset.lerp(a, z, 0.5)!;
+    final ms = _p(mid);
+    final sc = proj.scaleAt(mid);
+    final vRatio = (proj.verticalScaleAt(mid) / sc).clamp(0.3, 1.0);
+    final r = m.cell * 0.205 * sc;
 
-    final base = Paint()
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = w
-      ..color = const Color(0xCC1A140D);
-    final Color topColor;
+    final Color body;
+    final Color plate;
     if (preview) {
-      topColor = ok ? const Color(0xEE5ED17A) : const Color(0xEEE5615C);
+      body = ok ? const Color(0xD94E7A51) : const Color(0xD9974440);
+      plate = ok ? const Color(0xF076B579) : const Color(0xF0D67065);
     } else {
-      topColor = b.isWire ? const Color(0xFF2A2620) : const Color(0xFFD79A2B);
+      body = const Color(0xFF5E5B39);
+      plate = const Color(0xFF3B3820);
     }
-    final top = Paint()
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = w * 0.58
-      ..color = topColor;
 
+    // Gölge.
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: ms + Offset(0, r * 0.12),
+        width: r * 2.7,
+        height: r * 2.7 * vRatio * 0.42,
+      ),
+      Paint()
+        ..color = const Color(0x66000000)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+    );
+
+    // Toprağa gömülü gövde.
+    final bodyRect = Rect.fromCenter(
+      center: ms + Offset(0, -r * 0.16),
+      width: r * 2.0,
+      height: r * 1.35 * vRatio + r * 0.28,
+    );
     canvas
-      ..drawLine(a, z, base)
-      ..drawLine(a, z, top);
+      ..drawOval(bodyRect.shift(Offset(0, r * 0.13)),
+          Paint()..color = const Color(0xFF291F15))
+      ..drawOval(bodyRect, Paint()..color = body)
+      ..drawArc(
+        bodyRect,
+        math.pi * 1.08,
+        math.pi * 0.84,
+        false,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = r * 0.16
+          ..color = const Color(0x52F0E8D6),
+      )
+      ..drawArc(
+        bodyRect,
+        math.pi * 0.1,
+        math.pi * 0.8,
+        false,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = r * 0.14
+          ..color = const Color(0x40140D08),
+      );
+
+    // Basınç plakası.
+    final plateRect = Rect.fromCenter(
+      center: ms + Offset(0, -r * 0.42),
+      width: r * 1.15,
+      height: r * 0.78 * vRatio + r * 0.14,
+    );
+    canvas
+      ..drawOval(plateRect, Paint()..color = plate)
+      ..drawArc(
+        plateRect,
+        math.pi * 0.1,
+        math.pi * 0.8,
+        false,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = r * 0.07
+          ..color = const Color(0x40140D08),
+      );
+
+    if (!preview) {
+      // Tetik çubukları (3 kısa diken yukarı-dışa).
+      final prong = Paint()
+        ..strokeCap = StrokeCap.round
+        ..strokeWidth = r * 0.13
+        ..color = const Color(0xFF6C6748);
+      for (final ang in const [-1.25, -0.15, 0.95]) {
+        final d = Offset(math.cos(ang - math.pi / 2), math.sin(ang - math.pi / 2));
+        final root = ms + Offset(0, -r * 0.5) + d * (r * 0.18);
+        canvas
+          ..drawLine(root, root + d * (r * 0.95), prong)
+          ..drawCircle(
+              root + d * (r * 0.95), r * 0.09, Paint()..color = const Color(0xFF8C8662));
+      }
+      // Amber tehlike işareti.
+      canvas
+        ..drawCircle(ms + Offset(0, -r * 0.42), r * 0.19,
+            Paint()..color = const Color(0xFFCF9A2B))
+        ..drawCircle(ms + Offset(0, -r * 0.42), r * 0.09,
+            Paint()..color = const Color(0xFF171009));
+    }
+  }
+
+  /// Dikenli tel: 3 eğik direk + tepeleri arası sarkan 3 tel + dikenler.
+  /// Billboard.
+  void _drawWire(
+    Canvas canvas,
+    BoardMetrics m,
+    BoardProjection proj,
+    Barrier b, {
+    bool preview = false,
+    bool ok = true,
+  }) {
+    final (a, z) = m.barrierLine(b);
+    final pivot = Offset.lerp(a, z, 0.5)!;
+    final scMid = proj.scaleAt(pivot);
+
+    final Color woodC;
+    final Color wireC;
+    if (preview) {
+      woodC = ok ? const Color(0xDD3E6E44) : const Color(0xDD8A3E37);
+      wireC = ok ? const Color(0xF085CE86) : const Color(0xF0E88079);
+    } else {
+      woodC = const Color(0xFF4A3D2C);
+      wireC = const Color(0xFF6B6250);
+    }
+
+    // Zemin gölgesi.
+    canvas.drawLine(
+      _p(a),
+      _p(z),
+      Paint()
+        ..strokeCap = StrokeCap.round
+        ..strokeWidth = m.cell * 0.1 * scMid
+        ..color = const Color(0x3D000000),
+    );
+
+    // Direkler.
+    final tops = <Offset>[];
+    for (final pt in [a, pivot, z]) {
+      final s = _p(pt);
+      final sca = proj.scaleAt(pt);
+      final h = m.cell * 0.52 * sca;
+      final top = s + Offset(h * 0.06, -h);
+      tops.add(top);
+      canvas
+        ..drawOval(
+          Rect.fromCenter(
+              center: s, width: m.cell * 0.26 * sca, height: m.cell * 0.11 * sca),
+          Paint()..color = const Color(0xFF291F15),
+        )
+        ..drawLine(
+          s,
+          top,
+          Paint()
+            ..strokeCap = StrokeCap.round
+            ..strokeWidth = m.cell * 0.062 * sca
+            ..color = woodC,
+        )
+        ..drawLine(
+          s.translate(-m.cell * 0.014 * sca, 0),
+          top.translate(-m.cell * 0.014 * sca, 0),
+          Paint()
+            ..strokeCap = StrokeCap.round
+            ..strokeWidth = m.cell * 0.022 * sca
+            ..color = const Color(0x40F3ECDC),
+        );
+    }
+
+    // Teller (bitişik direk tepeleri arası, sarkan).
+    for (var i = 0; i < tops.length - 1; i++) {
+      final p0 = tops[i];
+      final p1 = tops[i + 1];
+      for (var k = 0; k < 3; k++) {
+        final sag = m.cell * (0.05 + k * 0.045) * scMid;
+        final lift = k * 2.0 * scMid;
+        final c0 = p0.translate(0, -lift);
+        final c1 = p1.translate(0, -lift);
+        final ctrl = Offset.lerp(c0, c1, 0.5)! + Offset(0, sag);
+        canvas.drawPath(
+          Path()
+            ..moveTo(c0.dx, c0.dy)
+            ..quadraticBezierTo(ctrl.dx, ctrl.dy, c1.dx, c1.dy),
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.9 * scMid.clamp(0.7, 1.5)
+            ..color = wireC,
+        );
+        for (var t = 0.14; t < 0.93; t += 0.2) {
+          final bp = _quadPoint(c0, ctrl, c1, t);
+          final s = 3.0 * scMid.clamp(0.7, 1.5);
+          canvas
+            ..drawLine(bp + Offset(-s, -s), bp + Offset(s, s),
+                Paint()
+                  ..strokeWidth = 1.3
+                  ..color = wireC)
+            ..drawLine(bp + Offset(-s, s), bp + Offset(s, -s),
+                Paint()
+                  ..strokeWidth = 1.3
+                  ..color = wireC);
+        }
+      }
+    }
+  }
+
+  static Offset _quadPoint(Offset p0, Offset c, Offset p1, double t) {
+    final mt = 1 - t;
+    return p0 * (mt * mt) + c * (2 * mt * t) + p1 * (t * t);
   }
 
   /// "Miğferli mevzi" askeri: kazılı toprak taban + siper (brim) + miğfer
