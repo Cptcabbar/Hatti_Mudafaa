@@ -6,6 +6,7 @@ import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:game_core/game_core.dart';
 
+import '../settings.dart';
 import 'board_metrics.dart';
 import 'board_projection.dart';
 import 'game_controller.dart';
@@ -52,6 +53,11 @@ class BoardComponent extends PositionComponent with TapCallbacks {
   /// Uzak kenarın arkasında ekran uzayında çizilir; eğimle taraf değiştirir.
   Image? _envImage;
 
+  /// Bir kez üretilen no man's land zemin katmanı (kraterler + tel yumakları +
+  /// moloz + yan enkazlar). Ufkun yakın tarafında, tam genişlikte çizilir —
+  /// tahtanın yanındaki boş kahverengi alanları doldurur; eğimle taraf değiştirir.
+  Image? _groundLayerImage;
+
   /// Tahtanın çizim alanındaki sol-üst köşesi (viewport pikseli).
   Offset _origin = Offset.zero;
   double _boardSide = 0;
@@ -73,6 +79,8 @@ class BoardComponent extends PositionComponent with TapCallbacks {
   final List<_Mote> _ash = [];
 
   BoardMetrics? get metrics => _metrics;
+
+  bool get _particlesOn => AppSettings.instance.particles.value;
 
   double get _targetTilt {
     // Yapay zeka / tek taraf modunda tahta hep yerel oyuncuya (P1) bakar;
@@ -105,6 +113,7 @@ class BoardComponent extends PositionComponent with TapCallbacks {
     );
     _bakeGround();
     _bakeEnvironment();
+    _bakeGroundLayer();
     _rebuildProjection();
   }
 
@@ -114,6 +123,8 @@ class BoardComponent extends PositionComponent with TapCallbacks {
     _groundImage = null;
     _envImage?.dispose();
     _envImage = null;
+    _groundLayerImage?.dispose();
+    _groundLayerImage = null;
     super.onRemove();
   }
 
@@ -569,21 +580,7 @@ class BoardComponent extends PositionComponent with TapCallbacks {
 
     // Görüntü koordinatı: y=0 gökyüzü (yukarı), y=h ufuk (tahtanın uzak kenarı).
 
-    // 1) Uzak yangın parıltısı (ufkun hemen üstünde, sıcak ama sönük).
-    for (var i = 0; i < 3; i++) {
-      c.drawCircle(
-        Offset(
-          w * (0.12 + 0.76 * rnd.nextDouble()),
-          h * (0.5 + 0.1 * rnd.nextDouble()),
-        ),
-        h * (0.16 + rnd.nextDouble() * 0.12),
-        Paint()
-          ..color = Color.fromRGBO(150, 86, 44, 0.05 + rnd.nextDouble() * 0.05)
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, h * 0.1),
-      );
-    }
-
-    // 2) Katmanlı sırt hatları (arkadan öne: soluk+bulanık → koyu+net).
+    // 1) Katmanlı sırt hatları (arkadan öne: soluk+bulanık → koyu+net).
     Path ridge(double baseFrac, double amp, int bumps) {
       final topBase = h * baseFrac;
       final p = Path()
@@ -615,7 +612,7 @@ class BoardComponent extends PositionComponent with TapCallbacks {
       )
       ..drawPath(ridge(0.71, h * 0.12, 6), Paint()..color = const Color(0xC80A0806));
 
-    // 3) Parçalanmış ağaçlar (orta sırt üstünde — kırık, çıralı zirveler).
+    // 2) Parçalanmış ağaçlar (orta sırt üstünde — kırık, çıralı zirveler).
     void shatteredTree(double x, double baseY, double th) {
       final lean = (rnd.nextDouble() - 0.5) * th * 0.22;
       final top = x + lean;
@@ -652,7 +649,7 @@ class BoardComponent extends PositionComponent with TapCallbacks {
       );
     }
 
-    // 4) Yıkık sığınak / duvar (çökmüş, devrik kirişli).
+    // 3) Yıkık sığınak / duvar (çökmüş, devrik kirişli).
     {
       final x = w * (0.18 + 0.5 * rnd.nextDouble());
       final by = h * 0.72;
@@ -679,7 +676,7 @@ class BoardComponent extends PositionComponent with TapCallbacks {
         );
     }
 
-    // 5) Dikenli tel engeli — sıra kazık + tepeleri arasında sarkan 3 tel.
+    // 4) Dikenli tel engeli — sıra kazık + tepeleri arasında sarkan 3 tel.
     {
       const n = 12;
       final wy = h * 0.85;
@@ -722,7 +719,7 @@ class BoardComponent extends PositionComponent with TapCallbacks {
       }
     }
 
-    // 6) Kırık kazık tarlası (yoğun, yakın — no man's land).
+    // 5) Kırık kazık tarlası (yoğun, yakın — no man's land).
     for (var i = 0; i < 22; i++) {
       final x = w * (0.01 + 0.98 * rnd.nextDouble());
       final rootY = h * (0.85 + 0.16 * rnd.nextDouble());
@@ -751,7 +748,7 @@ class BoardComponent extends PositionComponent with TapCallbacks {
       }
     }
 
-    // 7) Devrik top arabası (tekerlek + namlu silüeti).
+    // 6) Devrik top arabası (tekerlek + namlu silüeti).
     {
       final wheel = h * 0.06;
       c
@@ -801,7 +798,7 @@ class BoardComponent extends PositionComponent with TapCallbacks {
       c.restore();
     }
 
-    // 8) Mermi kraterleri (tahtanın uzak kenarına değen zeminde).
+    // 7) Mermi kraterleri (tahtanın uzak kenarına değen zeminde).
     for (var i = 0; i < 4; i++) {
       final rw = h * (0.06 + rnd.nextDouble() * 0.05);
       c.drawOval(
@@ -819,6 +816,165 @@ class BoardComponent extends PositionComponent with TapCallbacks {
 
     final picture = recorder.endRecording();
     _envImage = picture.toImageSync((w * scale).ceil(), (h * scale).ceil());
+    picture.dispose();
+  }
+
+  /// No man's land zemin katmanı — tam viewport genişliğinde, ufkun yakın
+  /// tarafında. Kraterler + tel yumakları + moloz + kenarlarda büyük enkaz.
+  /// Tahtanın yanındaki / önündeki boş kahverengi alanları doldurur.
+  void _bakeGroundLayer() {
+    if (size.x <= 0 || size.y <= 0) return;
+    _groundLayerImage?.dispose();
+
+    const scale = 2.0;
+    final w = size.x;
+    final h = size.y; // ufuktan en yakın kenara — tam yükseklik güvenli
+    final recorder = PictureRecorder();
+    final c = Canvas(recorder)..scale(scale);
+    final rnd = math.Random(556677);
+
+    // Görüntü: y=0 ufuk (şeffafa yakın), y=h en yakın (koyu). Çamurlu taban.
+    c.drawRect(
+      Rect.fromLTWH(0, 0, w, h),
+      Paint()
+        ..shader = Gradient.linear(
+          const Offset(0, 0),
+          Offset(0, h),
+          const [Color(0x00000000), Color(0xE0261B0F), Color(0xF01B1409)],
+          const [0.0, 0.13, 1.0],
+        ),
+    );
+
+    // Geniş tonal dalgalar (kuru/ıslak yamalar).
+    for (var i = 0; i < 16; i++) {
+      final ny = 0.14 + 0.84 * rnd.nextDouble();
+      c.drawCircle(
+        Offset(w * (rnd.nextDouble() * 1.1 - 0.05), h * ny),
+        h * (0.05 + 0.09 * rnd.nextDouble()),
+        Paint()
+          ..color = rnd.nextBool()
+              ? Color.fromRGBO(20, 15, 9, 0.14 + rnd.nextDouble() * 0.14)
+              : Color.fromRGBO(120, 104, 78, 0.03 + rnd.nextDouble() * 0.04)
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, h * 0.03),
+      );
+    }
+
+    // Mermi kraterleri — yakına doğru büyür; hafif izci-yanı ışığı.
+    for (var i = 0; i < 14; i++) {
+      final ny = 0.16 + 0.8 * rnd.nextDouble();
+      final cx = w * (rnd.nextDouble() * 1.12 - 0.06);
+      final cy = h * ny;
+      final rad = h * (0.028 + 0.055 * ny) * (0.7 + rnd.nextDouble() * 0.8);
+      final r = Rect.fromCenter(
+        center: Offset(cx, cy),
+        width: rad * 2.7,
+        height: rad * 1.5,
+      );
+      c
+        ..drawOval(
+          r,
+          Paint()
+            ..color = const Color(0x9E100C07)
+            ..maskFilter = MaskFilter.blur(BlurStyle.normal, rad * 0.45),
+        )
+        ..drawArc(
+          r,
+          0.25,
+          math.pi - 0.5,
+          false,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = rad * 0.14
+            ..color = const Color(0x22A8906A)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
+        );
+    }
+
+    // Dikenli tel yumakları — kaotik kısa çizgi kümeleri.
+    for (var i = 0; i < 9; i++) {
+      final cx = w * (rnd.nextDouble() * 1.12 - 0.06);
+      final cy = h * (0.2 + 0.74 * rnd.nextDouble());
+      final rad = h * (0.02 + 0.035 * rnd.nextDouble());
+      final p = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.1
+        ..color = const Color(0x8C0B0805);
+      for (var k = 0; k < 10; k++) {
+        final a0 = rnd.nextDouble() * math.pi * 2;
+        final a1 = a0 + 0.7 + rnd.nextDouble() * 2.2;
+        c.drawLine(
+          Offset(cx + math.cos(a0) * rad, cy + math.sin(a0) * rad * 0.5),
+          Offset(cx + math.cos(a1) * rad * 1.3, cy + math.sin(a1) * rad * 0.65),
+          p,
+        );
+      }
+    }
+
+    // Moloz — kısa koyu çubuk / kalas parçaları.
+    for (var i = 0; i < 26; i++) {
+      final len = h * (0.012 + 0.03 * rnd.nextDouble());
+      c
+        ..save()
+        ..translate(w * rnd.nextDouble(), h * (0.18 + 0.8 * rnd.nextDouble()))
+        ..rotate((rnd.nextDouble() - 0.5) * math.pi)
+        ..drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromCenter(
+                center: Offset.zero, width: len, height: len * 0.26),
+            const Radius.circular(1.5),
+          ),
+          Paint()..color = const Color(0xC00A0705),
+        )
+        ..restore();
+    }
+
+    // İki büyük yan enkaz — kenar bölgelerine odak (yıkık araç / sığınak).
+    for (final side in const [0.09, 0.91]) {
+      final cx = w * side;
+      final cy = h * (0.4 + 0.14 * rnd.nextDouble());
+      final ww = h * 0.13;
+      final hh = h * 0.085;
+      c
+        ..drawPath(
+          Path()
+            ..moveTo(cx - ww, cy)
+            ..lineTo(cx - ww * 0.78, cy - hh)
+            ..lineTo(cx + ww * 0.15, cy - hh * 1.25)
+            ..lineTo(cx + ww * 0.9, cy - hh * 0.5)
+            ..lineTo(cx + ww, cy)
+            ..close(),
+          Paint()..color = const Color(0xD40A0705),
+        )
+        ..drawCircle(
+          Offset(cx - ww * 0.5, cy + hh * 0.15),
+          hh * 0.55,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.6
+            ..color = const Color(0xD40A0705),
+        );
+    }
+
+    // Kenar karartma — yanları çerçevele (dikkat merkeze).
+    c.drawRect(
+      Rect.fromLTWH(0, 0, w, h),
+      Paint()
+        ..shader = Gradient.linear(
+          const Offset(0, 0),
+          Offset(w, 0),
+          const [
+            Color(0x73000000),
+            Color(0x00000000),
+            Color(0x00000000),
+            Color(0x73000000),
+          ],
+          const [0.0, 0.16, 0.84, 1.0],
+        ),
+    );
+
+    final picture = recorder.endRecording();
+    _groundLayerImage =
+        picture.toImageSync((w * scale).ceil(), (h * scale).ceil());
     picture.dispose();
   }
 
@@ -869,6 +1025,29 @@ class BoardComponent extends PositionComponent with TapCallbacks {
         ),
     );
 
+    // 1b) No man's land zemin katmanı — ufkun yakın tarafında, tam genişlikte.
+    //     Tahtanın yanındaki / önündeki boş kahverengi alanları doldurur.
+    final ground = _groundLayerImage;
+    if (ground != null) {
+      final gsrc = Rect.fromLTWH(
+          0, 0, ground.width.toDouble(), ground.height.toDouble());
+      final gpaint = Paint()..filterQuality = FilterQuality.medium;
+      canvas.save();
+      if (farAtTop) {
+        canvas
+          ..translate(0, farY)
+          ..drawImageRect(
+              ground, gsrc, Rect.fromLTWH(0, 0, vw, vh), gpaint);
+      } else {
+        canvas
+          ..translate(vw, farY)
+          ..rotate(math.pi)
+          ..drawImageRect(
+              ground, gsrc, Rect.fromLTWH(0, 0, vw, vh), gpaint);
+      }
+      canvas.restore();
+    }
+
     // 2) Ufuk parıltısı + ara ara flare titremesi (silüetleri arkadan aydınlatır).
     final flare = 0.5 + 0.5 * math.sin(_t * 0.9);
     final band = vh * 0.18;
@@ -911,56 +1090,32 @@ class BoardComponent extends PositionComponent with TapCallbacks {
       canvas.restore();
     }
 
-    // 3b) Yanan enkaz — birkaç noktada hareketli alev + titreşen kor bloomu.
-    if (envO > 0.02) {
+    // 3b) Yanan enkaz — tahtanın YANINDAKİ / ÖNÜNDEKİ zeminde birkaç noktada
+    //     hareketli alev + titreşen kor bloomu + ince yükselen duman.
+    if (_particlesOn && envO > 0.02) {
+      // fx: yatay konum, fd: ufuktan yakına doğru kesir, s: ölçek.
       const fires = [
-        (fx: 0.43, s: 1.0),
-        (fx: 0.70, s: 0.6),
+        (fx: 0.06, fd: 0.10, s: 0.62),
+        (fx: 0.93, fd: 0.14, s: 0.55),
+        (fx: 0.12, fd: 0.46, s: 1.15),
+        (fx: 0.88, fd: 0.52, s: 0.95),
       ];
+      final toNear = farAtTop ? 1.0 : -1.0;
       for (final f in fires) {
-        final fx = vw * f.fx;
-        final fy = farY + up * vh * 0.006;
-        final sc = vh * 0.042 * f.s;
-        final flick = 0.62 +
-            0.24 * math.sin(_t * 11 + f.fx * 40) +
-            0.14 * math.sin(_t * 26 + f.fx * 17);
-        canvas.drawCircle(
-          Offset(fx, fy),
-          sc * (2.2 + 0.6 * flick),
-          Paint()
-            ..color = Color.fromRGBO(238, 132, 52, 0.1 * flick * envO)
-            ..maskFilter = MaskFilter.blur(BlurStyle.normal, sc * 1.7),
+        _drawFire(
+          canvas,
+          vw * f.fx,
+          farY + toNear * vh * f.fd,
+          vh * 0.05 * f.s,
+          f.fx,
+          envO,
+          up,
         );
-        for (var i = 0; i < 4; i++) {
-          final lf = 0.45 + 0.55 * math.sin(_t * (9 + i * 3.0) + i + f.fx * 12);
-          final lx = fx + (i - 1.5) * sc * 0.4;
-          final tipY = fy + up * sc * (0.85 + 1.25 * lf);
-          final midY = (fy + tipY) / 2;
-          final wob = math.sin(_t * 7 + i * 1.7) * sc * 0.2;
-          canvas.drawPath(
-            Path()
-              ..moveTo(lx - sc * 0.3, fy)
-              ..quadraticBezierTo(lx - sc * 0.16, midY, lx + wob, tipY)
-              ..quadraticBezierTo(lx + sc * 0.16, midY, lx + sc * 0.3, fy)
-              ..close(),
-            Paint()
-              ..shader = Gradient.linear(
-                Offset(lx, fy),
-                Offset(lx, tipY),
-                [
-                  Color.fromRGBO(252, 186, 92, 0.42 * lf * envO),
-                  Color.fromRGBO(222, 92, 30, 0.22 * envO),
-                  const Color(0x00000000),
-                ],
-                const [0.0, 0.42, 1.0],
-              ),
-          );
-        }
       }
     }
 
     // 4) Katmanlı sürüklenen pus (yatay bantlar, yavaş yanal kayar).
-    if (envO > 0.01) {
+    if (_particlesOn && envO > 0.01) {
       for (var i = 0; i < 3; i++) {
         final fy = farY + up * vh * (0.05 + i * 0.1);
         final drift = math.sin(_t * (0.12 + i * 0.05) + i * 2.0) * vw * 0.12;
@@ -986,13 +1141,11 @@ class BoardComponent extends PositionComponent with TapCallbacks {
       }
     }
 
-    // 5) Duman sütunları — 4 adet, farklı yükseklik / genişlik / salınım.
-    if (envO > 0.01) {
+    // 5) Uzak duman sütunları — 2 adet (yakın ateşlerin kendi dumanı ayrıca var).
+    if (_particlesOn && envO > 0.01) {
       const cols = [
-        (fx: 0.17, ph: 0.30, a: 0.30, spd: 0.42, wd: 0.075),
-        (fx: 0.40, ph: 0.20, a: 0.18, spd: 0.61, wd: 0.05),
-        (fx: 0.63, ph: 0.36, a: 0.26, spd: 0.35, wd: 0.085),
-        (fx: 0.85, ph: 0.24, a: 0.2, spd: 0.52, wd: 0.06),
+        (fx: 0.30, ph: 0.34, a: 0.24, spd: 0.4, wd: 0.08),
+        (fx: 0.68, ph: 0.24, a: 0.18, spd: 0.55, wd: 0.06),
       ];
       for (final s in cols) {
         final sx = vw * s.fx;
@@ -1030,7 +1183,7 @@ class BoardComponent extends PositionComponent with TapCallbacks {
     }
 
     // 6) Uzak flare / patlama titremesi — nadir ısı bloomu.
-    if (envO > 0.01) {
+    if (_particlesOn && envO > 0.01) {
       for (var i = 0; i < 2; i++) {
         final pulse = math
             .pow(math.max(0.0, math.sin(_t * (0.7 + i * 0.3) + i * 3.0)), 12)
@@ -1046,19 +1199,21 @@ class BoardComponent extends PositionComponent with TapCallbacks {
       }
     }
 
-    // 7) Kül / kor zerreleri (ortam — her zaman hafif, yavaş yukarı drift).
-    _ensureMotes();
-    final cycle = vh + 40;
-    final moteP = Paint();
-    for (final mte in _motes) {
-      final yy =
-          (((mte.ny * cycle - _t * mte.spd) % cycle) + cycle) % cycle - 20;
-      final xx = mte.nx * vw + math.sin(_t * 0.5 + mte.phase) * mte.amp;
-      moteP.color = mte.ember
-          ? Color.fromRGBO(
-              216, 132, 66, mte.a * (0.55 + 0.45 * math.sin(_t * 3 + mte.phase)))
-          : Color.fromRGBO(138, 126, 98, mte.a);
-      canvas.drawCircle(Offset(xx, yy), mte.r, moteP);
+    // 7) Kül / kor zerreleri (uzak cephede yukarı süzülen ortam tozu).
+    if (_particlesOn) {
+      _ensureMotes();
+      final cycle = vh + 40;
+      final moteP = Paint();
+      for (final mte in _motes) {
+        final yy =
+            (((mte.ny * cycle - _t * mte.spd) % cycle) + cycle) % cycle - 20;
+        final xx = mte.nx * vw + math.sin(_t * 0.5 + mte.phase) * mte.amp;
+        moteP.color = mte.ember
+            ? Color.fromRGBO(216, 132, 66,
+                mte.a * (0.55 + 0.45 * math.sin(_t * 3 + mte.phase)))
+            : Color.fromRGBO(138, 126, 98, mte.a);
+        canvas.drawCircle(Offset(xx, yy), mte.r, moteP);
+      }
     }
 
     // 8) Yakın ön plan — SADECE tahtanın yakın kenarında ince bir gölge dudağı.
@@ -1090,24 +1245,26 @@ class BoardComponent extends PositionComponent with TapCallbacks {
   void _ensureAsh() {
     if (_ash.isNotEmpty) return;
     final rnd = math.Random(90190);
-    for (var i = 0; i < 20; i++) {
+    for (var i = 0; i < 30; i++) {
       final ember = i % 5 == 0;
       _ash.add(_Mote(
         rnd.nextDouble(),
         rnd.nextDouble(),
-        ember ? 1.3 + rnd.nextDouble() * 1.7 : 0.8 + rnd.nextDouble() * 2.0,
+        ember ? 1.8 + rnd.nextDouble() * 2.2 : 1.1 + rnd.nextDouble() * 2.6,
         7 + rnd.nextDouble() * 15, // düşme hızı (px/sn)
         6 + rnd.nextDouble() * 18, // yanal salınım genliği
         rnd.nextDouble() * math.pi * 2,
-        ember ? 0.22 + rnd.nextDouble() * 0.12 : 0.11 + rnd.nextDouble() * 0.11,
+        ember ? 0.3 + rnd.nextDouble() * 0.16 : 0.16 + rnd.nextDouble() * 0.14,
         ember,
       ));
     }
   }
 
   /// Sahanın (tahtanın + taşların) üstüne yavaşça düşen kül ve titreşen kor
-  /// zerreleri. Ekran uzayında, [render] sonunda çizilir.
+  /// zerreleri. Ekran uzayında, [render] sonunda çizilir. "Partiküller" ayarı
+  /// kapalıysa hiç çizilmez.
   void _drawAshOverlay(Canvas canvas) {
+    if (!_particlesOn) return;
     final vw = size.x;
     final vh = size.y;
     if (vw <= 0 || vh <= 0) return;
@@ -1130,6 +1287,79 @@ class BoardComponent extends PositionComponent with TapCallbacks {
         p.color = Color.fromRGBO(166, 156, 136, a.a);
         canvas.drawCircle(Offset(xx, yy), a.r, p);
       }
+    }
+  }
+
+  /// Tek bir yanan enkaz noktası: yer parıltısı + oynayan alev dilleri +
+  /// ince yükselen duman. [up] alevin yükseldiği ekran yönü (eğime göre).
+  void _drawFire(
+    Canvas canvas,
+    double fx,
+    double fy,
+    double sc,
+    double seed,
+    double envO,
+    double up,
+  ) {
+    final flick = 0.6 +
+        0.26 * math.sin(_t * 12 + seed * 40) +
+        0.14 * math.sin(_t * 27 + seed * 13);
+
+    // Yere vuran sıcak parıltı.
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(fx, fy),
+        width: sc * (5.0 + 1.2 * flick),
+        height: sc * (2.1 + 0.5 * flick),
+      ),
+      Paint()
+        ..color = Color.fromRGBO(236, 128, 50, 0.14 * flick * envO)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, sc * 1.6),
+    );
+
+    // İnce yükselen duman (alevden önce — arkada).
+    final st = fy + up * sc * 3.4;
+    final drift = math.sin(_t * 0.6 + seed * 6) * sc * 1.8;
+    canvas.drawPath(
+      Path()
+        ..moveTo(fx - sc * 0.5, fy)
+        ..quadraticBezierTo(fx - sc + drift, (fy + st) / 2, fx + drift, st)
+        ..quadraticBezierTo(fx + sc + drift, (fy + st) / 2, fx + sc * 0.5, fy)
+        ..close(),
+      Paint()
+        ..shader = Gradient.linear(
+          Offset(fx, fy),
+          Offset(fx, st),
+          [Color.fromRGBO(30, 26, 21, 0.22 * envO), const Color(0x00000000)],
+        )
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, sc * 0.9),
+    );
+
+    // Alev dilleri.
+    for (var i = 0; i < 5; i++) {
+      final lf = 0.4 + 0.6 * math.sin(_t * (8 + i * 3.0) + i * 1.3 + seed * 12);
+      final lx = fx + (i - 2) * sc * 0.42;
+      final tipY = fy + up * sc * (1.1 + 1.7 * lf);
+      final midY = (fy + tipY) / 2;
+      final wob = math.sin(_t * 6.5 + i * 1.9) * sc * 0.28;
+      canvas.drawPath(
+        Path()
+          ..moveTo(lx - sc * 0.36, fy)
+          ..quadraticBezierTo(lx - sc * 0.2, midY, lx + wob, tipY)
+          ..quadraticBezierTo(lx + sc * 0.2, midY, lx + sc * 0.36, fy)
+          ..close(),
+        Paint()
+          ..shader = Gradient.linear(
+            Offset(lx, fy),
+            Offset(lx, tipY),
+            [
+              Color.fromRGBO(255, 208, 118, 0.55 * lf * envO),
+              Color.fromRGBO(230, 100, 32, 0.3 * envO),
+              const Color(0x00000000),
+            ],
+            const [0.0, 0.4, 1.0],
+          ),
+      );
     }
   }
 

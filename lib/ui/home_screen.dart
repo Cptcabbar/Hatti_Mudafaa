@@ -1,25 +1,29 @@
 import 'package:flutter/material.dart';
 
+import '../settings.dart';
 import 'game_screen.dart';
 import 'theme_backdrop.dart';
 
 /// Ana menü. Sade tutulur; görsel derinlik [ThemeBackdrop] ile verilir.
 /// Yapay zeka ve online sonraki fazlarda.
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  bool _timed = true;
-
-  void _startLocalGame() {
+  void _startLocalGame(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (context) => GameScreen(timed: _timed),
+        builder: (context) =>
+            GameScreen(timed: AppSettings.instance.timed.value),
       ),
+    );
+  }
+
+  void _openSettings(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: ThemeBackdrop.base,
+      showDragHandle: true,
+      builder: (context) => const _SettingsSheet(),
     );
   }
 
@@ -42,7 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       const _TitleBlock(),
                       const SizedBox(height: 56),
                       FilledButton(
-                        onPressed: _startLocalGame,
+                        onPressed: () => _startLocalGame(context),
                         style: FilledButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 40,
@@ -57,14 +61,22 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: const Text('YEREL OYNA'),
                       ),
                       const SizedBox(height: 16),
-                      _TimedToggle(
-                        value: _timed,
-                        onChanged: (v) => setState(() => _timed = v),
-                      ),
+                      const _TimedToggle(),
                       const Spacer(flex: 4),
                     ],
                   ),
                 ),
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topRight,
+              child: IconButton(
+                tooltip: 'Ayarlar',
+                onPressed: () => _openSettings(context),
+                icon: const Icon(Icons.settings_outlined),
+                color: const Color(0xFFB7AE97),
               ),
             ),
           ),
@@ -144,38 +156,124 @@ class _StandoffPainter extends CustomPainter {
 }
 
 class _TimedToggle extends StatelessWidget {
-  const _TimedToggle({required this.value, required this.onChanged});
-
-  final bool value;
-  final ValueChanged<bool> onChanged;
+  const _TimedToggle();
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white.withValues(alpha: 0.05),
-      borderRadius: BorderRadius.circular(24),
-      child: InkWell(
+    final timed = AppSettings.instance.timed;
+    return ValueListenableBuilder<bool>(
+      valueListenable: timed,
+      builder: (context, value, _) => Material(
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(24),
-        onTap: () => onChanged(!value),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 6, 10, 6),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.timer_outlined, size: 18),
-              const SizedBox(width: 10),
-              const Text(
-                'Süreli mod',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(width: 6),
-              Switch(
-                value: value,
-                onChanged: onChanged,
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-            ],
+        child: InkWell(
+          borderRadius: BorderRadius.circular(24),
+          onTap: () => timed.value = !value,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 6, 10, 6),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.timer_outlined, size: 18),
+                const SizedBox(width: 10),
+                const Text(
+                  'Süreli mod',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(width: 6),
+                Switch(
+                  value: value,
+                  onChanged: (v) => timed.value = v,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ],
+            ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Alttan açılan ayar paneli. Ses / Müzik / Partiküller anahtarları; ses ve
+/// müzik hattı sonraki fazda bağlanacak (şimdilik yalnızca tercih saklanır).
+class _SettingsSheet extends StatelessWidget {
+  const _SettingsSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: Text(
+                'AYARLAR',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 4,
+                  color: Color(0xFFB7AE97),
+                ),
+              ),
+            ),
+            _SettingRow(
+              icon: Icons.graphic_eq,
+              label: 'Ses',
+              subtitle: 'Efekt sesleri · yakında',
+              notifier: AppSettings.instance.sound,
+            ),
+            _SettingRow(
+              icon: Icons.music_note_outlined,
+              label: 'Müzik',
+              subtitle: 'Arka plan müziği · yakında',
+              notifier: AppSettings.instance.music,
+            ),
+            _SettingRow(
+              icon: Icons.blur_on,
+              label: 'Partiküller',
+              subtitle: 'Ateş, duman ve kül efektleri',
+              notifier: AppSettings.instance.particles,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingRow extends StatelessWidget {
+  const _SettingRow({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.notifier,
+  });
+
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final ValueNotifier<bool> notifier;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: notifier,
+      builder: (context, value, _) => SwitchListTile(
+        value: value,
+        onChanged: (v) => notifier.value = v,
+        secondary: Icon(icon, color: const Color(0xFFB7AE97)),
+        title: Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: const TextStyle(fontSize: 12),
         ),
       ),
     );

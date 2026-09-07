@@ -3,10 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'settings.dart';
 import 'ui/home_screen.dart';
 import 'ui/loading_view.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const HattiMudafaaApp());
 }
 
@@ -54,7 +56,8 @@ class _BootstrapState extends State<_Bootstrap> {
         DeviceOrientation.portraitDown,
       ]),
     );
-    // İleride: await _loadFontsAndAtlas(); await _loadSettings(); ...
+    await AppSettings.instance.load();
+    // İleride: await _loadFontsAndAtlas(); ...
   }
 
   @override
