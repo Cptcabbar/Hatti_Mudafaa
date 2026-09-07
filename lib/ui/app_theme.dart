@@ -28,11 +28,12 @@ abstract final class AppPalette {
   /// Başlık / yüksek kontrast metin.
   static const title = Color(0xFFEDE7D6);
 
-  /// Oyuncu 1 (Mavi).
-  static const p1 = Color(0xFF3E6E9E);
+  /// Oyuncu 1 — "mavi" taraf: soluk arduvaz (asker miğfer boyasıyla aynı,
+  /// bkz. `board_component.dart` `_Faction.p1`). Parlak takım rengi değil.
+  static const p1 = Color(0xFF47607A);
 
-  /// Oyuncu 2 (Kırmızı).
-  static const p2 = Color(0xFFA2433B);
+  /// Oyuncu 2 — "kırmızı" taraf: soluk pas kırmızısı (`_Faction.p2`).
+  static const p2 = Color(0xFF8A4A3E);
 }
 
 /// Uygulama geneli koyu tema. `main.dart` bunu `MaterialApp.theme`'e verir.

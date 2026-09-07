@@ -4,6 +4,7 @@ import 'package:game_core/game_core.dart';
 
 import '../game/board_component.dart';
 import '../game/game_controller.dart';
+import 'app_theme.dart';
 import 'loading_view.dart';
 
 /// Yerel (hot-seat) oyun ekranı.
@@ -167,7 +168,9 @@ class _GameScreenState extends State<GameScreen> {
   }
 }
 
-/// Bir oyuncunun kontrol paneli. Sırası ondaysa açık, değilse katlı.
+/// Bir oyuncunun kontrol paneli — "cephe konsolu". Sırası ondaysa açık (mod
+/// çipleri + eylem çubuğu), değilse katlı kilitli şerit. Tahtaya bakan
+/// kenarında tarafın soluk boya bandı + perçin sırası.
 class _PlayerPanel extends StatelessWidget {
   const _PlayerPanel({
     required this.controller,
@@ -179,8 +182,8 @@ class _PlayerPanel extends StatelessWidget {
   final Player player;
   final bool rotated;
 
-  Color get _color =>
-      player == Player.p1 ? const Color(0xFF3E6E9E) : const Color(0xFFA2433B);
+  /// Tarafın soluk boyası — asker miğferiyle aynı ton (`_Faction.p1/p2`).
+  Color get _accent => player == Player.p1 ? AppPalette.p1 : AppPalette.p2;
 
   bool get _active => controller.turn == player && !controller.isOver;
 
@@ -201,34 +204,63 @@ class _PlayerPanel extends StatelessWidget {
         ],
       ),
     );
+
+    // Column'un ilk çocuğu kenar şeridi; RotatedBox sonrası P2 için ekranın
+    // alt kenarına (tahtaya bakan tarafa) düşer.
+    final content = DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: _active
+              ? const [Color(0xFF231C12), Color(0xFF16120C)]
+              : const [Color(0xFF141009), Color(0xFF100C07)],
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _TrenchEdge(color: _accent, active: _active),
+          body,
+        ],
+      ),
+    );
+
     return Material(
-      color: _color.withValues(alpha: _active ? 0.14 : 0.06),
-      child: rotated ? RotatedBox(quarterTurns: 2, child: body) : body,
+      color: AppPalette.base,
+      child: rotated ? RotatedBox(quarterTurns: 2, child: content) : content,
     );
   }
 
   Widget _foldedBody(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+    final over = controller.isOver;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            controller.isOver ? Icons.flag : Icons.lock_outline,
-            size: 16,
-            color: _color,
+            over ? Icons.flag_outlined : Icons.lock_outline,
+            size: 15,
+            color: _accent,
           ),
           const SizedBox(width: 8),
           Text(
-            controller.isOver
+            over
                 ? 'Oyun bitti'
                 : '${_GameScreenState.playerName(player)} · sıra rakipte',
-            style: const TextStyle(fontWeight: FontWeight.w600),
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: AppPalette.text,
+              letterSpacing: 0.3,
+            ),
           ),
           const SizedBox(width: 12),
-          const Icon(Icons.bolt, size: 16),
-          Text(' ${controller.armoryOf(player)}'),
+          const Icon(Icons.bolt, size: 13, color: AppPalette.amberDim),
+          Text(
+            ' ${controller.armoryOf(player)}',
+            style: const TextStyle(color: AppPalette.text),
+          ),
         ],
       ),
     );
@@ -237,32 +269,35 @@ class _PlayerPanel extends StatelessWidget {
   Widget _activeBody(BuildContext context) {
     final inBarrierMode = controller.mode != InteractionMode.move;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+      padding: const EdgeInsets.fromLTRB(12, 9, 12, 12),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             children: [
-              Icon(Icons.circle, size: 14, color: _color),
+              Icon(Icons.circle, size: 12, color: _accent),
               const SizedBox(width: 8),
               Text(
                 '${_GameScreenState.playerName(player)} oynuyor',
-                style: const TextStyle(fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: AppPalette.title,
+                  letterSpacing: 0.3,
+                ),
               ),
               const Spacer(),
-              const Icon(Icons.bolt, size: 18),
+              _ArmoryTag(count: controller.armoryOf(player)),
               const SizedBox(width: 2),
-              Text('${controller.armoryOf(player)}'),
-              const SizedBox(width: 8),
               IconButton(
                 tooltip: 'Geri al',
                 visualDensity: VisualDensity.compact,
+                color: AppPalette.text,
                 onPressed: controller.canUndo ? controller.undo : null,
                 icon: const Icon(Icons.undo),
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
@@ -301,31 +336,32 @@ class _PlayerPanel extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
+                  child: _FieldButton(
+                    icon: Icons.rotate_right,
+                    label: 'Döndür',
                     onPressed: controller.preview == null
                         ? null
                         : controller.rotatePreview,
-                    icon: const Icon(Icons.rotate_right),
-                    label: const Text('Döndür'),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: FilledButton.icon(
+                  child: _FieldButton(
+                    icon: Icons.check,
+                    label: 'Onayla',
+                    primary: true,
                     onPressed: controller.canConfirmPreview
                         ? controller.confirmPreview
                         : null,
-                    icon: const Icon(Icons.check),
-                    label: const Text('Onayla'),
                   ),
                 ),
                 const SizedBox(width: 8),
-                IconButton.outlined(
+                _FieldButton(
+                  icon: Icons.close,
                   tooltip: 'İptal',
                   onPressed: controller.preview == null
                       ? null
                       : controller.cancelPreview,
-                  icon: const Icon(Icons.close),
                 ),
               ],
             ),
@@ -336,6 +372,83 @@ class _PlayerPanel extends StatelessWidget {
   }
 }
 
+/// Panelin tahtaya bakan kenarı: tarafın soluk boya bandı + ince metal
+/// parıltısı + perçin sırası. Sıra sende değilken sönük.
+class _TrenchEdge extends StatelessWidget {
+  const _TrenchEdge({required this.color, required this.active});
+
+  final Color color;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        height: 7,
+        width: double.infinity,
+        child: CustomPaint(painter: _TrenchEdgePainter(color, active)),
+      );
+}
+
+class _TrenchEdgePainter extends CustomPainter {
+  _TrenchEdgePainter(this.color, this.active);
+
+  final Color color;
+  final bool active;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final a = active ? 1.0 : 0.4;
+    canvas
+      ..drawRect(
+        Rect.fromLTWH(0, 0, size.width, 3),
+        Paint()..color = color.withValues(alpha: 0.6 * a),
+      )
+      ..drawRect(
+        Rect.fromLTWH(0, 0, size.width, 1),
+        Paint()..color = const Color(0xFFF3ECDC).withValues(alpha: 0.10 * a),
+      );
+    final rivet = Paint()
+      ..color = const Color(0xFF0E0B06).withValues(alpha: 0.65 * a);
+    final n = (size.width / 32).floor().clamp(5, 16);
+    for (var i = 0; i < n; i++) {
+      canvas.drawCircle(Offset(size.width * (i + 0.5) / n, 5), 1.4, rivet);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TrenchEdgePainter old) =>
+      old.color != color || old.active != active;
+}
+
+/// Kalan cephanelik puanı — küçük çerçeveli etiket.
+class _ArmoryTag extends StatelessWidget {
+  const _ArmoryTag({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.fromLTRB(6, 2, 8, 2),
+        decoration: BoxDecoration(border: Border.all(color: AppPalette.line)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.bolt, size: 14, color: AppPalette.amber),
+            const SizedBox(width: 2),
+            Text(
+              '$count',
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                color: AppPalette.text,
+                fontSize: 12.5,
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+/// Etkileşim modu seçici — köşeli. Seçili: amber basılı levha (üst ışık +
+/// kalın alt kenar). Pasif: koyu yüzey + ince çerçeve. Alınamıyorsa soluk.
 class _ModeChip extends StatelessWidget {
   const _ModeChip({
     required this.label,
@@ -353,32 +466,37 @@ class _ModeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final bg = selected ? scheme.primary : scheme.surfaceContainerHighest;
-    final fg = selected ? scheme.onPrimary : scheme.onSurfaceVariant;
+    final fg = selected ? const Color(0xFF201404) : AppPalette.text;
     return Opacity(
-      opacity: enabled ? 1 : 0.4,
+      opacity: enabled ? 1 : 0.35,
       child: Material(
-        color: bg,
-        borderRadius: BorderRadius.circular(12),
+        color: selected ? AppPalette.amber : AppPalette.surfaceHi,
         child: InkWell(
-          borderRadius: BorderRadius.circular(12),
           onTap: enabled ? onTap : null,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Container(
+            decoration: BoxDecoration(
+              border: selected
+                  ? const Border(
+                      top: BorderSide(color: Color(0x30FFFFFF)),
+                      bottom: BorderSide(color: AppPalette.amberDim, width: 2.5),
+                    )
+                  : Border.all(color: AppPalette.line),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 7),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, size: 20, color: fg),
-                const SizedBox(height: 2),
+                Icon(icon, size: 19, color: fg),
+                const SizedBox(height: 3),
                 Text(
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: fg,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.2,
                   ),
                 ),
               ],
@@ -387,6 +505,78 @@ class _ModeChip extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Köşeli eylem düğmesi. `primary`: amber basılı levha. Değilse: hayalet
+/// (şeffaf + ince çerçeve). `label` verilmezse yalnız ikon (İptal gibi).
+class _FieldButton extends StatelessWidget {
+  const _FieldButton({
+    required this.icon,
+    required this.onPressed,
+    this.label,
+    this.tooltip,
+    this.primary = false,
+  });
+
+  final IconData icon;
+  final String? label;
+  final String? tooltip;
+  final bool primary;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onPressed != null;
+    final fg = primary ? const Color(0xFF201404) : AppPalette.text;
+    final iconOnly = label == null;
+
+    Widget button = Opacity(
+      opacity: enabled ? 1 : 0.35,
+      child: Material(
+        color: primary ? AppPalette.amber : Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          child: Container(
+            decoration: BoxDecoration(
+              border: primary
+                  ? const Border(
+                      top: BorderSide(color: Color(0x30FFFFFF)),
+                      bottom: BorderSide(color: AppPalette.amberDim, width: 2.5),
+                    )
+                  : Border.all(color: AppPalette.line),
+            ),
+            padding: EdgeInsets.symmetric(
+              vertical: 9,
+              horizontal: iconOnly ? 12 : 4,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 17, color: fg),
+                if (!iconOnly) ...[
+                  const SizedBox(width: 6),
+                  Text(
+                    label!,
+                    style: TextStyle(
+                      color: fg,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    return tooltip == null
+        ? button
+        : Tooltip(message: tooltip!, child: button);
   }
 }
 

@@ -2046,6 +2046,9 @@ class _Faction {
   static const steelDark = Color(0xFF2E2F24);
   static const steelBrim = Color(0xFF383A2E);
 
+  // Not: bu iki ton UI tarafında `AppPalette.p1/p2` ile birebir aynı olmalı
+  // (katmanlar ayrı: oyun katmanı ui/app_theme'i import etmez).
+
   /// Mavi taraf — soluk arduvaz.
   static const p1 = _Faction(Color(0xFF47607A));
 
