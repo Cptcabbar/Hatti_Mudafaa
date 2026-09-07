@@ -106,58 +106,63 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   Widget _buildGame() {
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (context, _) {
-        return Column(
-          children: [
-            _PlayerPanel(
-              controller: controller,
-              player: Player.p2,
-              rotated: true,
-            ),
-            Expanded(
-              child: Stack(
-                children: [
-                  // Flame tuvali kendini kırpmaz; çevre katmanları (gökyüzü,
-                  // ufuk parıltısı, silüet, vinyet) uzak kenarın ötesine taşar.
-                  // ClipRect olmadan bu koyu katmanlar panellerin üstüne sarkıp
-                  // butonları karartıyordu.
-                  Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: ClipRect(child: GameWidget(game: game)),
-                  ),
-                  Positioned(
-                    left: 4,
-                    top: 0,
-                    bottom: 0,
-                    child: Center(
-                      child: IconButton.filledTonal(
-                        tooltip: 'Çıkış',
-                        onPressed: () => Navigator.of(context).maybePop(),
-                        icon: const Icon(Icons.close),
-                      ),
-                    ),
-                  ),
-                  if (widget.timed)
-                    Positioned(
-                      right: 4,
-                      top: 8,
-                      bottom: 8,
-                      width: 30,
-                      child: _TurnTimer(controller: controller),
-                    ),
-                ],
+    // Yalnızca controller'a bağlı parçalar (paneller + sayaç) `AnimatedBuilder`
+    // içinde yeniden kurulur. `GameWidget` + kenar düğmeleri sabit kalır —
+    // her hamlede / sayaç tıkında ağır Flame widget ağacını yeniden kurmayız
+    // (engel koyduktan sonraki onay karesindeki takılmayı azaltır).
+    final gameArea = Expanded(
+      child: Stack(
+        children: [
+          // Flame tuvali kendini kırpmaz; çevre katmanları (gökyüzü,
+          // ufuk parıltısı, silüet, vinyet) uzak kenarın ötesine taşar.
+          // ClipRect olmadan bu koyu katmanlar panellerin üstüne sarkıp
+          // butonları karartıyordu.
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: ClipRect(child: GameWidget(game: game)),
+          ),
+          Positioned(
+            left: 4,
+            top: 0,
+            bottom: 0,
+            child: Center(
+              child: IconButton.filledTonal(
+                tooltip: 'Çıkış',
+                onPressed: () => Navigator.of(context).maybePop(),
+                icon: const Icon(Icons.close),
               ),
             ),
-            _PlayerPanel(
-              controller: controller,
-              player: Player.p1,
-              rotated: false,
+          ),
+          if (widget.timed)
+            Positioned(
+              right: 4,
+              top: 8,
+              bottom: 8,
+              width: 30,
+              child: AnimatedBuilder(
+                animation: controller,
+                builder: (context, _) => _TurnTimer(controller: controller),
+              ),
             ),
-          ],
+        ],
+      ),
+    );
+
+    Widget panel(Player p, {required bool rotated}) => AnimatedBuilder(
+          animation: controller,
+          builder: (context, _) => _PlayerPanel(
+            controller: controller,
+            player: p,
+            rotated: rotated,
+          ),
         );
-      },
+
+    return Column(
+      children: [
+        panel(Player.p2, rotated: true),
+        gameArea,
+        panel(Player.p1, rotated: false),
+      ],
     );
   }
 }

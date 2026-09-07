@@ -122,6 +122,16 @@ class BoardComponent extends PositionComponent with TapCallbacks {
   /// parıltısı / flare / kor için — her karede `MaskFilter.blur` yerine.
   Image? _glowSprite;
 
+  /// Boyut oturana kadar bekleyen bake isteği. Panel `AnimatedSize`
+  /// animasyonları (sıra değişince açılıp katlanan paneller) `GameWidget`
+  /// yüksekliğini ~13 kare boyunca her kare birkaç piksel değiştiriyor;
+  /// eskiden bu, kare başına 3 pahalı dokuyu (`toImageSync` + blur) yeniden
+  /// üretip engel koyduktan sonraki dönüşte 300 ms+ takılmaya yol açıyordu.
+  /// Dokular zaten her kare `drawImageRect` ile ölçeklendiği için, birkaç kare
+  /// "yanlış çözünürlükte" doku (hafif yumuşak) sorun değil.
+  Vector2? _pendingBakeSize;
+  int _bakeSettleFrames = 0;
+
   @override
   void onGameResize(Vector2 size) {
     super.onGameResize(size);
@@ -133,16 +143,29 @@ class BoardComponent extends PositionComponent with TapCallbacks {
       boardSize: controller.state.config.boardSize,
       side: _boardSide,
     );
-    if (_bakedForSize == null ||
+    _glowSprite ??= _bakeGlowSprite();
+
+    final changed = _bakedForSize == null ||
         (size.x - _bakedForSize!.x).abs() > 1 ||
-        (size.y - _bakedForSize!.y).abs() > 1) {
-      _bakedForSize = size.clone();
-      _bakeGround();
-      _bakeEnvironment();
-      _bakeGroundLayer();
-      _glowSprite ??= _bakeGlowSprite();
+        (size.y - _bakedForSize!.y).abs() > 1;
+    if (changed) {
+      if (_bakedForSize == null) {
+        // İlk bake hemen (render'dan önce, yükleme ekranı ardında).
+        _rebakeTextures(size);
+      } else {
+        // Sonraki boyut değişimleri: boyut oturana dek ertele.
+        _pendingBakeSize = size.clone();
+        _bakeSettleFrames = 0;
+      }
     }
     _rebuildProjection();
+  }
+
+  void _rebakeTextures(Vector2 size) {
+    _bakedForSize = size.clone();
+    _bakeGround();
+    _bakeEnvironment();
+    _bakeGroundLayer();
   }
 
   @override
@@ -246,21 +269,44 @@ class BoardComponent extends PositionComponent with TapCallbacks {
     1.0, 0.5, 0.0, -0.5, -1.0, 0.0, 1.0,
   ];
 
-  static const Barrier _primeMine = Barrier(
-    type: BarrierType.mine,
-    orientation: BarrierOrientation.horizontal,
-    anchor: Square(3, 3),
-  );
-  static const Barrier _primeWire = Barrier(
-    type: BarrierType.wire,
-    orientation: BarrierOrientation.vertical,
-    anchor: Square(2, 3),
-  );
+  static const List<Barrier> _primeBarriers = [
+    Barrier(
+      type: BarrierType.mine,
+      orientation: BarrierOrientation.horizontal,
+      anchor: Square(3, 3),
+    ),
+    Barrier(
+      type: BarrierType.mine,
+      orientation: BarrierOrientation.vertical,
+      anchor: Square(2, 4),
+    ),
+    Barrier(
+      type: BarrierType.wire,
+      orientation: BarrierOrientation.vertical,
+      anchor: Square(2, 3),
+    ),
+    Barrier(
+      type: BarrierType.wire,
+      orientation: BarrierOrientation.horizontal,
+      anchor: Square(3, 2),
+    ),
+  ];
 
   @override
   void update(double dt) {
     super.update(dt);
     _t += dt;
+
+    // Ertelenmiş doku bake — boyut birkaç kare oturunca yap (panel açılıp
+    // katlanma animasyonu bitince), kare başına değil.
+    if (_pendingBakeSize != null) {
+      _bakeSettleFrames++;
+      if (_bakeSettleFrames >= 6) {
+        _rebakeTextures(_pendingBakeSize!);
+        _pendingBakeSize = null;
+        _rebuildProjection();
+      }
+    }
 
     if (_priming) {
       _primeStep++;
@@ -440,15 +486,23 @@ class BoardComponent extends PositionComponent with TapCallbacks {
     // Sahanın üstüne düşen kül / kor — tahtanın ve taşların üstünde.
     _drawAshOverlay(canvas);
 
-    // Isınma: engel + önizleme (yeşil/kırmızı) shader'larını da canlı boru
-    // hattında derlet — yükleme ekranı önü kapatırken, görünmez.
+    // Isınma: engel + önizleme çizim yollarını canlı boru hattında yeterince
+    // çalıştır ki hem Skia shader/tessellation cache'i dolsun hem de dart2js/V8
+    // bu sıcak fonksiyonları JIT ile üst kademeye alsın. Yükleme ekranı önü
+    // kapatırken yapılır (görünmez); gerçek bir engel koyulunca dönüşte
+    // takılma olmasın diye çok tekrarlıdır.
     if (_priming) {
-      for (final pv in const [false, true]) {
-        _drawMine(canvas, m, proj, _primeMine, preview: pv, ok: pv);
-        _drawWire(canvas, m, proj, _primeWire, preview: pv, ok: !pv);
+      for (final b in _primeBarriers) {
+        for (final pv in const [false, true]) {
+          if (b.isWire) {
+            _drawWire(canvas, m, proj, b, preview: pv, ok: !pv);
+          } else {
+            _drawMine(canvas, m, proj, b, preview: pv, ok: pv);
+          }
+        }
+        _drawBarrierScar(canvas, m, b);
+        _drawBarrierScar(canvas, m, b, ghost: true);
       }
-      _drawBarrierScar(canvas, m, _primeMine);
-      _drawBarrierScar(canvas, m, _primeWire, ghost: true);
     }
 
     // Çevre vinyeti — köşeleri hafifçe karart (en üstte, çok hafif). Shader

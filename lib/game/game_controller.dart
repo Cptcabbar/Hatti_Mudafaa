@@ -85,7 +85,7 @@ class GameController extends ChangeNotifier {
       case InteractionMode.move:
         final sq = metrics.squareAt(local);
         if (sq != null && legalStepTargets.contains(sq)) {
-          _apply(StepMove(sq));
+          _apply(StepMove(sq), validated: true);
         }
       case InteractionMode.mine:
       case InteractionMode.wire:
@@ -130,8 +130,8 @@ class GameController extends ChangeNotifier {
   }
 
   void confirmPreview() {
-    if (!canConfirmPreview) return;
-    _apply(PlaceBarrierMove(_preview!));
+    if (!canConfirmPreview) return; // §5.3 dört koşulu burada zaten doğrulandı
+    _apply(PlaceBarrierMove(_preview!), validated: true);
   }
 
   void cancelPreview() {
@@ -152,9 +152,14 @@ class GameController extends ChangeNotifier {
     _resetInteraction();
   }
 
-  void _apply(Move move) {
+  /// [validated] `true` ise hamlenin yasallığı çağrı öncesi kontrol edildi
+  /// ([legalStepTargets] / [canConfirmPreview]) — [Rules.applyMove]'un tekrar
+  /// doğrulaması atlanır. Doğrulama tüm engel adaylarını BFS'le tarar (kare
+  /// başına yüzlerce yol araması + geçici nesne); bu, hamleden hemen sonra
+  /// başlayan kamera dönüşünde çöp toplama takılmasına yol açıyordu.
+  void _apply(Move move, {bool validated = false}) {
     _history.add(_state);
-    _state = Rules.applyMove(_state, move);
+    _state = Rules.applyMove(_state, move, validate: !validated);
     _resetInteraction();
   }
 
@@ -188,7 +193,7 @@ class GameController extends ChangeNotifier {
   /// Süre dolunca: sıradaki asker hedefe en çok yaklaşan adımı otomatik yapar.
   void _handleTimeout() {
     if (_state.isOver) return;
-    _apply(_autoMove());
+    _apply(_autoMove(), validated: true); // _autoMove yalnızca yasal hamle üretir
   }
 
   Move _autoMove() {
