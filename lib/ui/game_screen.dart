@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:game_core/game_core.dart';
@@ -256,7 +258,7 @@ class _PlayerPanel extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          const Icon(Icons.bolt, size: 13, color: AppPalette.amberDim),
+          const _SupplyMark(size: 11, color: AppPalette.amberDim),
           Text(
             ' ${controller.armoryOf(player)}',
             style: const TextStyle(color: AppPalette.text),
@@ -303,7 +305,8 @@ class _PlayerPanel extends StatelessWidget {
               Expanded(
                 child: _ModeChip(
                   label: 'Hareket',
-                  icon: Icons.directions_walk,
+                  mark: (color, size) =>
+                      Icon(Icons.directions_walk, size: size, color: color),
                   selected: controller.mode == InteractionMode.move,
                   enabled: true,
                   onTap: () => controller.setMode(InteractionMode.move),
@@ -312,8 +315,9 @@ class _PlayerPanel extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: _ModeChip(
-                  label: 'Mayın · 1',
-                  icon: Icons.brightness_1,
+                  label: 'Mayın',
+                  cost: 1,
+                  mark: (color, size) => _MineMark(size: size, color: color),
                   selected: controller.mode == InteractionMode.mine,
                   enabled: controller.canAfford(BarrierType.mine),
                   onTap: () => controller.setMode(InteractionMode.mine),
@@ -322,8 +326,9 @@ class _PlayerPanel extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: _ModeChip(
-                  label: 'Tel · 2',
-                  icon: Icons.dehaze,
+                  label: 'Tel',
+                  cost: 2,
+                  mark: (color, size) => _WireMark(size: size, color: color),
                   selected: controller.mode == InteractionMode.wire,
                   enabled: controller.canAfford(BarrierType.wire),
                   onTap: () => controller.setMode(InteractionMode.wire),
@@ -419,7 +424,7 @@ class _TrenchEdgePainter extends CustomPainter {
       old.color != color || old.active != active;
 }
 
-/// Kalan cephanelik puanı — küçük çerçeveli etiket.
+/// Kalan cephanelik puanı — küçük çerçeveli etiket ("cephane" logosu + sayı).
 class _ArmoryTag extends StatelessWidget {
   const _ArmoryTag({required this.count});
 
@@ -432,8 +437,8 @@ class _ArmoryTag extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.bolt, size: 14, color: AppPalette.amber),
-            const SizedBox(width: 2),
+            const _SupplyMark(size: 12),
+            const SizedBox(width: 4),
             Text(
               '$count',
               style: const TextStyle(
@@ -449,17 +454,22 @@ class _ArmoryTag extends StatelessWidget {
 
 /// Etkileşim modu seçici — köşeli. Seçili: amber basılı levha (üst ışık +
 /// kalın alt kenar). Pasif: koyu yüzey + ince çerçeve. Alınamıyorsa soluk.
+/// Engel modlarında ikinci satırda maliyet: sayı + "cephane" logosu.
 class _ModeChip extends StatelessWidget {
   const _ModeChip({
     required this.label,
-    required this.icon,
+    required this.mark,
     required this.selected,
     required this.enabled,
     required this.onTap,
+    this.cost,
   });
 
   final String label;
-  final IconData icon;
+
+  /// İkonu istenen renk + boyutta üretir (özel çizim ya da Material ikon).
+  final Widget Function(Color color, double size) mark;
+  final int? cost;
   final bool selected;
   final bool enabled;
   final VoidCallback onTap;
@@ -486,7 +496,7 @@ class _ModeChip extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, size: 19, color: fg),
+                SizedBox(height: 19, child: Center(child: mark(fg, 19))),
                 const SizedBox(height: 3),
                 Text(
                   label,
@@ -499,6 +509,29 @@ class _ModeChip extends StatelessWidget {
                     letterSpacing: 0.2,
                   ),
                 ),
+                // Maliyet satırı — çipler eşit yükseklikte kalsın diye her zaman
+                // ayrılır (Hareket'te boş).
+                SizedBox(
+                  height: 14,
+                  child: cost == null
+                      ? null
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Text(
+                              '$cost',
+                              style: TextStyle(
+                                color: fg,
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(width: 3),
+                            _SupplyMark(size: 9.5, color: fg),
+                          ],
+                        ),
+                ),
               ],
             ),
           ),
@@ -506,6 +539,162 @@ class _ModeChip extends StatelessWidget {
       ),
     );
   }
+}
+
+/// "Cephane" logosu — stilize topçu mermisi. Cephanelik puanı ve engel
+/// maliyetleri bu simgeyle gösterilir (oyun içi para birimi).
+class _SupplyMark extends StatelessWidget {
+  const _SupplyMark({this.size = 13, this.color = AppPalette.amber});
+
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+        dimension: size,
+        child: CustomPaint(painter: _SupplyPainter(color)),
+      );
+}
+
+class _SupplyPainter extends CustomPainter {
+  const _SupplyPainter(this.color);
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final cx = w / 2;
+    final bw = w * 0.62;
+    final l = cx - bw / 2;
+    final r = cx + bw / 2;
+    final body = Paint()..color = color;
+    // Mermi gövdesi: sivri uç + silindirik gövde + düz taban.
+    canvas.drawPath(
+      Path()
+        ..moveTo(l, h * 0.34)
+        ..quadraticBezierTo(l, h * 0.04, cx, h * 0.03)
+        ..quadraticBezierTo(r, h * 0.04, r, h * 0.34)
+        ..lineTo(r, h * 0.90)
+        ..lineTo(l, h * 0.90)
+        ..close(),
+      body,
+    );
+    // Taban bileziği (biraz geniş).
+    canvas.drawRect(Rect.fromLTRB(l - w * 0.08, h * 0.88, r + w * 0.08, h), body);
+    // Sürücü bandı — koyu kesik.
+    canvas.drawRect(
+      Rect.fromLTRB(l, h * 0.60, r, h * 0.70),
+      Paint()..color = const Color(0xFF201404).withValues(alpha: 0.32),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _SupplyPainter old) => old.color != color;
+}
+
+/// Mayın modu simgesi — yassı disk + tetik çubukları + göbek (tahtadaki
+/// `_drawMine` ile aynı dil).
+class _MineMark extends StatelessWidget {
+  const _MineMark({required this.size, required this.color});
+
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+        dimension: size,
+        child: CustomPaint(painter: _MinePainter(color)),
+      );
+}
+
+class _MinePainter extends CustomPainter {
+  const _MinePainter(this.color);
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final c = Offset(w / 2, h * 0.64);
+    final rx = w * 0.42;
+    final ry = h * 0.20;
+    final prong = Paint()
+      ..color = color
+      ..strokeWidth = w * 0.09
+      ..strokeCap = StrokeCap.round;
+    for (final a in const [-2.3, -math.pi / 2, -0.85]) {
+      final d = Offset(math.cos(a), math.sin(a));
+      canvas.drawLine(
+        c + Offset(d.dx * rx * 0.55, d.dy * ry * 0.55),
+        c + Offset(d.dx * rx * 0.7, d.dy * ry * 3.0),
+        prong,
+      );
+    }
+    canvas.drawOval(
+      Rect.fromCenter(center: c, width: rx * 2, height: ry * 2),
+      Paint()..color = color,
+    );
+    canvas.drawCircle(c, w * 0.08, Paint()..color = const Color(0xFF201404));
+  }
+
+  @override
+  bool shouldRepaint(covariant _MinePainter old) => old.color != color;
+}
+
+/// Dikenli tel modu simgesi — direkler + sarkan tel (tahtadaki `_drawWire`
+/// ile aynı dil).
+class _WireMark extends StatelessWidget {
+  const _WireMark({required this.size, required this.color});
+
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+        dimension: size,
+        child: CustomPaint(painter: _WirePainter(color)),
+      );
+}
+
+class _WirePainter extends CustomPainter {
+  const _WirePainter(this.color);
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final baseY = h * 0.84;
+    final topY = h * 0.24;
+    final xs = [w * 0.16, w * 0.5, w * 0.84];
+    final post = Paint()
+      ..color = color
+      ..strokeWidth = w * 0.08
+      ..strokeCap = StrokeCap.round;
+    for (final x in xs) {
+      canvas.drawLine(Offset(x, baseY), Offset(x, topY), post);
+    }
+    final strand = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w * 0.05;
+    for (var i = 0; i < xs.length - 1; i++) {
+      canvas.drawPath(
+        Path()
+          ..moveTo(xs[i], topY)
+          ..quadraticBezierTo(
+              (xs[i] + xs[i + 1]) / 2, topY + h * 0.20, xs[i + 1], topY),
+        strand,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _WirePainter old) => old.color != color;
 }
 
 /// Köşeli eylem düğmesi. `primary`: amber basılı levha. Değilse: hayalet

@@ -17,8 +17,8 @@ void main() {
 
     expect(find.text('Mavi oynuyor'), findsOneWidget);
     expect(find.text('Hareket'), findsOneWidget);
-    expect(find.text('Mayın · 1'), findsOneWidget);
-    expect(find.text('Tel · 2'), findsOneWidget);
+    expect(find.text('Mayın'), findsOneWidget);
+    expect(find.text('Tel'), findsOneWidget);
     // engel modu seçilmeden Döndür/Onayla görünmez
     expect(find.text('Onayla'), findsNothing);
   });
@@ -27,7 +27,7 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: GameScreen(timed: false)));
     await settleScene(tester);
 
-    await tester.tap(find.text('Mayın · 1'));
+    await tester.tap(find.text('Mayın'));
     await tester.pump();
 
     expect(find.text('Döndür'), findsOneWidget);
