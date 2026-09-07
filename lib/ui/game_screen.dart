@@ -12,9 +12,13 @@ import 'loading_view.dart';
 /// kendi paneli kendi tarafındadır (üstteki 180° dönük). Sıra sende değilken
 /// panelin katlanır. Süreli modda her tur 30 sn — sayaç sağ kenarda.
 class GameScreen extends StatefulWidget {
-  const GameScreen({super.key, this.timed = true});
+  const GameScreen({super.key, this.timed = true, this.hotSeat = true});
 
   final bool timed;
+
+  /// `true`: iki kişi aynı cihazda — tahta her sıra dönen oyuncuya bakar.
+  /// `false` (Faz 2, yapay zeka): tahta sabit, yerel oyuncuya bakar.
+  final bool hotSeat;
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -30,7 +34,7 @@ class _GameScreenState extends State<GameScreen> {
   void initState() {
     super.initState();
     controller = GameController(timed: widget.timed);
-    game = HattiBoardGame(controller);
+    game = HattiBoardGame(controller, hotSeat: widget.hotSeat);
     controller.addListener(_onControllerChange);
     // Flame sahnesi yüklenene kadar ortak yükleme görünümü tam ekran örtsün.
     game.loaded.then((_) {

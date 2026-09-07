@@ -13,9 +13,14 @@ import 'game_controller.dart';
 /// Yerel oyunun Flame sahnesi. Şimdilik her kare durumdan yeniden çizilir;
 /// Faz 2'de piyon/engel ayrı animasyonlu bileşenlere ayrılacak.
 class HattiBoardGame extends FlameGame {
-  HattiBoardGame(this.controller);
+  HattiBoardGame(this.controller, {this.hotSeat = true});
 
   final GameController controller;
+
+  /// `true` (hot-seat): tahta her sıra, sırası gelen oyuncuya doğru döner.
+  /// `false` (yapay zeka / tek taraf): tahta sabit — yerel oyuncuya (P1) bakar.
+  final bool hotSeat;
+
   late final BoardComponent board;
 
   @override
@@ -23,15 +28,18 @@ class HattiBoardGame extends FlameGame {
 
   @override
   Future<void> onLoad() async {
-    board = BoardComponent(controller);
+    board = BoardComponent(controller, hotSeat: hotSeat);
     add(board);
   }
 }
 
 class BoardComponent extends PositionComponent with TapCallbacks {
-  BoardComponent(this.controller);
+  BoardComponent(this.controller, {this.hotSeat = true});
 
   final GameController controller;
+
+  /// bkz. [HattiBoardGame.hotSeat]
+  final bool hotSeat;
 
   BoardMetrics? _metrics;
   BoardProjection? _projection;
@@ -50,8 +58,21 @@ class BoardComponent extends PositionComponent with TapCallbacks {
   BoardMetrics? get metrics => _metrics;
 
   double get _targetTilt {
+    // Yapay zeka / tek taraf modunda tahta hep yerel oyuncuya (P1) bakar;
+    // sıra AI'da iken dönmez — oynanış birebir aynı kalır.
+    if (!hotSeat) return 1.0;
     if (controller.isOver) return 0;
     return controller.turn == Player.p1 ? 1.0 : -1.0;
+  }
+
+  /// Ayakta duran öğelerin (asker, mayın çubukları, tel direkleri) tepe
+  /// noktasının ekran-y ofseti. Eğim yönüyle işaret değiştirir — böylece
+  /// hem tahta hem üstündeki her şey sırası gelen oyuncuya doğru "eğilir".
+  /// Eğim düzken (flip animasyonu ortası) yükseklik kısalır: diorama dönüşü.
+  double _liftY(double height) {
+    final sign = _tilt == 0 ? -1.0 : -_tilt.sign;
+    final mag = 0.28 + 0.72 * _tilt.abs();
+    return sign * mag * height;
   }
 
   @override
@@ -219,6 +240,8 @@ class BoardComponent extends PositionComponent with TapCallbacks {
     canvas.restore();
 
     // --- Dikey öğeler: derinliğe göre sıralı billboard ---
+    // Büyük derinlik = yakın = sonra çizilir (üstte). Beraberlikte asker öne
+    // gelsin (bitişik engelle üst üste gelince asker net kalır).
     double depthOf(Offset flat) => _tilt >= 0 ? flat.dy : -flat.dy;
     final items = <({double depth, void Function() draw})>[];
 
@@ -234,11 +257,11 @@ class BoardComponent extends PositionComponent with TapCallbacks {
     }
     items
       ..add((
-        depth: depthOf(m.cellCenter(state.pawnP1)),
+        depth: depthOf(m.cellCenter(state.pawnP1)) + cell * 0.02,
         draw: () => _drawSoldier(canvas, m, proj, state.pawnP1, _Faction.p1),
       ))
       ..add((
-        depth: depthOf(m.cellCenter(state.pawnP2)),
+        depth: depthOf(m.cellCenter(state.pawnP2)) + cell * 0.02,
         draw: () => _drawSoldier(canvas, m, proj, state.pawnP2, _Faction.p2),
       ))
       ..sort((x, y) => x.depth.compareTo(y.depth));
@@ -529,8 +552,8 @@ class BoardComponent extends PositionComponent with TapCallbacks {
     }
   }
 
-  /// Mayın: toprağa yarı gömülü zeytin gövde + basınç plakası + tetik çubukları
-  /// + amber tehlike işareti. Billboard.
+  /// Mayın: toprağa gömülü **alçak** zeytin disk (miğferden ayrışsın diye
+  /// kasıtlı yassı) + basınç halkası + 3 tetik çubuğu + amber işaret. Billboard.
   void _drawMine(
     Canvas canvas,
     BoardMetrics m,
@@ -544,100 +567,85 @@ class BoardComponent extends PositionComponent with TapCallbacks {
     final ms = _p(mid);
     final sc = proj.scaleAt(mid);
     final vRatio = (proj.verticalScaleAt(mid) / sc).clamp(0.3, 1.0);
-    final r = m.cell * 0.205 * sc;
+    final r = m.cell * 0.22 * sc;
 
     final Color body;
+    final Color ring;
     final Color plate;
     if (preview) {
       body = ok ? const Color(0xD94E7A51) : const Color(0xD9974440);
-      plate = ok ? const Color(0xF076B579) : const Color(0xF0D67065);
+      ring = ok ? const Color(0xF03B6A43) : const Color(0xF07C332D);
+      plate = ok ? const Color(0xF07EBC81) : const Color(0xF0DC776C);
     } else {
-      body = const Color(0xFF5E5B39);
-      plate = const Color(0xFF3B3820);
+      body = const Color(0xFF57542F);
+      ring = const Color(0xFF373420);
+      plate = const Color(0xFF6B6743);
     }
 
-    // Gölge.
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: ms + Offset(0, r * 0.12),
-        width: r * 2.7,
-        height: r * 2.7 * vRatio * 0.42,
-      ),
-      Paint()
-        ..color = const Color(0x66000000)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
-    );
+    final cy = ms + Offset(0, _liftY(r * 0.16));
+    final w = r * 2.0;
+    final h = r * 0.9 * vRatio + r * 0.16;
 
-    // Toprağa gömülü gövde.
-    final bodyRect = Rect.fromCenter(
-      center: ms + Offset(0, -r * 0.16),
-      width: r * 2.0,
-      height: r * 1.35 * vRatio + r * 0.28,
-    );
     canvas
-      ..drawOval(bodyRect.shift(Offset(0, r * 0.13)),
-          Paint()..color = const Color(0xFF291F15))
-      ..drawOval(bodyRect, Paint()..color = body)
-      ..drawArc(
-        bodyRect,
-        math.pi * 1.08,
-        math.pi * 0.84,
-        false,
+      // Toprak yatağı.
+      ..drawOval(
+        Rect.fromCenter(center: ms, width: w * 1.3, height: h * 1.35),
         Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = r * 0.16
-          ..color = const Color(0x52F0E8D6),
+          ..color = const Color(0x66241B10)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
       )
+      // Gövde yan yüzü (koyu, hafif "aşağı").
+      ..drawOval(
+        Rect.fromCenter(
+            center: cy.translate(0, h * 0.16), width: w, height: h),
+        Paint()..color = ring,
+      )
+      // Üst yüz.
+      ..drawOval(Rect.fromCenter(center: cy, width: w, height: h),
+          Paint()..color = body)
+      // Basınç halkası.
+      ..drawOval(
+        Rect.fromCenter(center: cy, width: w * 0.62, height: h * 0.62),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = r * 0.09
+          ..color = const Color(0x77201B10),
+      )
+      // Göbek.
+      ..drawOval(
+        Rect.fromCenter(center: cy, width: w * 0.34, height: h * 0.34),
+        Paint()..color = plate,
+      )
+      // Üst-sol ışık.
       ..drawArc(
-        bodyRect,
-        math.pi * 0.1,
+        Rect.fromCenter(center: cy, width: w, height: h),
+        math.pi * 1.08,
         math.pi * 0.8,
         false,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = r * 0.14
-          ..color = const Color(0x40140D08),
-      );
-
-    // Basınç plakası.
-    final plateRect = Rect.fromCenter(
-      center: ms + Offset(0, -r * 0.42),
-      width: r * 1.15,
-      height: r * 0.78 * vRatio + r * 0.14,
-    );
-    canvas
-      ..drawOval(plateRect, Paint()..color = plate)
-      ..drawArc(
-        plateRect,
-        math.pi * 0.1,
-        math.pi * 0.8,
-        false,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = r * 0.07
-          ..color = const Color(0x40140D08),
+          ..strokeWidth = r * 0.09
+          ..color = const Color(0x33F3ECDC),
       );
 
     if (!preview) {
-      // Tetik çubukları (3 kısa diken yukarı-dışa).
+      // 3 tetik çubuğu — üst yüzden dışa + "yukarı".
       final prong = Paint()
         ..strokeCap = StrokeCap.round
-        ..strokeWidth = r * 0.13
-        ..color = const Color(0xFF6C6748);
-      for (final ang in const [-1.25, -0.15, 0.95]) {
+        ..strokeWidth = r * 0.12
+        ..color = const Color(0xFF706B4A);
+      for (final ang in const [-1.15, -0.1, 1.0]) {
         final d = Offset(math.cos(ang - math.pi / 2), math.sin(ang - math.pi / 2));
-        final root = ms + Offset(0, -r * 0.5) + d * (r * 0.18);
+        final root = cy + d * (r * 0.34);
+        final tip = root + d * (r * 0.42) + Offset(0, _liftY(r * 0.55));
         canvas
-          ..drawLine(root, root + d * (r * 0.95), prong)
-          ..drawCircle(
-              root + d * (r * 0.95), r * 0.09, Paint()..color = const Color(0xFF8C8662));
+          ..drawLine(root, tip, prong)
+          ..drawCircle(tip, r * 0.08, Paint()..color = const Color(0xFF908B60));
       }
       // Amber tehlike işareti.
       canvas
-        ..drawCircle(ms + Offset(0, -r * 0.42), r * 0.19,
-            Paint()..color = const Color(0xFFCF9A2B))
-        ..drawCircle(ms + Offset(0, -r * 0.42), r * 0.09,
-            Paint()..color = const Color(0xFF171009));
+        ..drawCircle(cy, r * 0.2, Paint()..color = const Color(0xFFCF9A2B))
+        ..drawCircle(cy, r * 0.09, Paint()..color = const Color(0xFF171009));
     }
   }
 
@@ -675,13 +683,13 @@ class BoardComponent extends PositionComponent with TapCallbacks {
         ..color = const Color(0x3D000000),
     );
 
-    // Direkler.
+    // Direkler — "yukarı" yönü eğime göre değişir (diğer oyuncuya döner).
     final tops = <Offset>[];
     for (final pt in [a, pivot, z]) {
       final s = _p(pt);
       final sca = proj.scaleAt(pt);
       final h = m.cell * 0.52 * sca;
-      final top = s + Offset(h * 0.06, -h);
+      final top = s + Offset(0, _liftY(h));
       tops.add(top);
       canvas
         ..drawOval(
@@ -713,10 +721,10 @@ class BoardComponent extends PositionComponent with TapCallbacks {
       final p1 = tops[i + 1];
       for (var k = 0; k < 3; k++) {
         final sag = m.cell * (0.05 + k * 0.045) * scMid;
-        final lift = k * 2.0 * scMid;
-        final c0 = p0.translate(0, -lift);
-        final c1 = p1.translate(0, -lift);
-        final ctrl = Offset.lerp(c0, c1, 0.5)! + Offset(0, sag);
+        final c0 = p0.translate(0, _liftY(k * 1.6 * scMid));
+        final c1 = p1.translate(0, _liftY(k * 1.6 * scMid));
+        // Sarkma "aşağı" (ayakta yönün tersi).
+        final ctrl = Offset.lerp(c0, c1, 0.5)! + Offset(0, -_liftY(sag));
         canvas.drawPath(
           Path()
             ..moveTo(c0.dx, c0.dy)
@@ -749,7 +757,8 @@ class BoardComponent extends PositionComponent with TapCallbacks {
   }
 
   /// "Miğferli mevzi" askeri: kazılı toprak taban + siper (brim) + miğfer
-  /// kubbesi. Billboard — ekran uzayında dik durur, derinliğe göre ölçeklenir.
+  /// kubbesi. Billboard — "yukarı" yönü eğimle işaret değiştirir (diğer
+  /// oyuncuya döner). Üst üste binmede net kalması için güçlü dış hat.
   void _drawSoldier(
     Canvas canvas,
     BoardMetrics m,
@@ -762,11 +771,14 @@ class BoardComponent extends PositionComponent with TapCallbacks {
     final sc = proj.scaleAt(g);
     final vRatio = (proj.verticalScaleAt(g) / sc).clamp(0.25, 1.0);
     final r = m.cell * 0.36 * sc;
-
-    final groundY = gs.dy;
-    final brimY = groundY - r * 0.52;
     final rh = r * 0.92;
-    final domeC = Offset(gs.dx, brimY - rh * 0.58);
+
+    // Işık/kabartma yönü işareti (eğimle döner).
+    final us = _tilt >= 0 ? 1.0 : -1.0;
+    final flip = us < 0 ? math.pi : 0.0;
+
+    final brimC = Offset(gs.dx, gs.dy + _liftY(r * 0.5));
+    final domeC = Offset(gs.dx, gs.dy + _liftY(r * 0.5 + rh * 0.58));
 
     // 1) Zemin gölgesi.
     canvas.drawOval(
@@ -776,27 +788,25 @@ class BoardComponent extends PositionComponent with TapCallbacks {
         height: r * 2.7 * vRatio * 0.5,
       ),
       Paint()
-        ..color = const Color(0x78000000)
+        ..color = const Color(0x82000000)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
     );
 
-    // 2) Kazılı mevzi tabanı (toprak halkası).
-    final moundW = r * 2.35;
-    final moundH = r * 0.78 * vRatio + r * 0.3;
+    // 2) Kazılı mevzi tabanı (yerde).
     final moundRect = Rect.fromCenter(
-      center: Offset(gs.dx, groundY - r * 0.1),
-      width: moundW,
-      height: moundH,
+      center: gs,
+      width: r * 2.35,
+      height: r * 0.78 * vRatio + r * 0.3,
     );
     canvas
       ..drawOval(
         moundRect.inflate(r * 0.08),
-        Paint()..color = const Color(0xFF241F17),
+        Paint()..color = const Color(0xFF221D15),
       )
       ..drawOval(moundRect, Paint()..color = const Color(0xFF4A3F2E))
       ..drawArc(
         moundRect,
-        math.pi * 1.12,
+        math.pi * 1.12 + flip,
         math.pi * 0.76,
         false,
         Paint()
@@ -805,24 +815,27 @@ class BoardComponent extends PositionComponent with TapCallbacks {
           ..color = const Color(0x3AC9B48A),
       );
 
-    // 3) Miğfer kubbesi — tam daire (alt kısmı brim'in arkasında kalır).
+    // 3) Miğfer kubbesi.
     final domeRect = Rect.fromCircle(center: domeC, radius: rh);
     canvas
+      // Koyu kontur halesi — arkadaki engelden ayrışması için.
+      ..drawCircle(domeC, rh + math.max(1.6, r * 0.06),
+          Paint()..color = const Color(0x8C0E0906))
       ..drawCircle(
         domeC,
         rh,
         Paint()
           ..shader = Gradient.radial(
-            domeC + Offset(-rh * 0.36, -rh * 0.42),
+            domeC + Offset(-rh * 0.36 * us, -rh * 0.42 * us),
             rh * 1.9,
             [fac.lit, fac.mid, fac.dark],
             const [0.0, 0.46, 1.0],
           ),
       )
-      // Sağ-alt gövde gölgesi.
+      // Karşı kenar gövde gölgesi.
       ..drawArc(
         domeRect.deflate(rh * 0.04),
-        -math.pi * 0.18,
+        -math.pi * 0.18 + flip,
         math.pi * 0.62,
         false,
         Paint()
@@ -830,10 +843,10 @@ class BoardComponent extends PositionComponent with TapCallbacks {
           ..strokeWidth = rh * 0.5
           ..color = const Color(0x2E140D08),
       )
-      // Üst-sol kenar ışığı.
+      // Kenar ışığı.
       ..drawArc(
         domeRect.deflate(rh * 0.06),
-        math.pi * 1.16,
+        math.pi * 1.16 + flip,
         math.pi * 0.42,
         false,
         Paint()
@@ -843,19 +856,19 @@ class BoardComponent extends PositionComponent with TapCallbacks {
           ..color = const Color(0x9EF3ECDC),
       );
 
-    // 4) Siper (brim) — miğferin oturduğu disk; kubbenin alt kısmını örter.
+    // 4) Siper (brim) — kubbenin alt kısmını örter.
     final brimRect = Rect.fromCenter(
-      center: Offset(gs.dx, brimY),
+      center: brimC,
       width: rh * 2.5,
       height: rh * 0.62 * vRatio + rh * 0.28,
     );
     canvas
-      ..drawOval(brimRect.shift(Offset(0, r * 0.04)),
-          Paint()..color = const Color(0x552A1C12))
+      ..drawOval(brimRect.shift(Offset(0, -_liftY(r * 0.05))),
+          Paint()..color = const Color(0x662A1C12))
       ..drawOval(brimRect, Paint()..color = fac.brim)
       ..drawArc(
         brimRect,
-        math.pi * 1.1,
+        math.pi * 1.1 + flip,
         math.pi * 0.75,
         false,
         Paint()
@@ -864,16 +877,17 @@ class BoardComponent extends PositionComponent with TapCallbacks {
           ..color = const Color(0x66F3ECDC),
       );
 
-    // 5) İnce dış hat (yalnız görünen üst kubbe) — okunurluk.
+    // 5) Görünen üst kubbe yayı boyunca güçlü dış hat.
     canvas.drawArc(
       domeRect,
-      math.pi * 0.96,
-      math.pi * 1.08,
+      math.pi * 0.94 + (us < 0 ? math.pi : 0.0),
+      math.pi * 1.12,
       false,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2
-        ..color = const Color(0x3A120C07),
+        ..strokeWidth = math.max(1.5, r * 0.05)
+        ..strokeCap = StrokeCap.round
+        ..color = const Color(0x66100A05),
     );
   }
 }
