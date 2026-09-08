@@ -4,6 +4,7 @@ import '../settings.dart';
 import 'app_theme.dart';
 import 'ash_fall.dart';
 import 'game_screen.dart';
+import 'how_to_play_screen.dart';
 import 'theme_backdrop.dart';
 
 /// Ana menü. Sade tutulur; görsel derinlik [ThemeBackdrop] ile verilir.
@@ -17,6 +18,12 @@ class HomeScreen extends StatelessWidget {
       backgroundColor: ThemeBackdrop.base,
       showDragHandle: true,
       builder: (context) => const _SettingsSheet(),
+    );
+  }
+
+  void _openHowToPlay(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (context) => const HowToPlayScreen()),
     );
   }
 
@@ -59,6 +66,17 @@ class HomeScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: IconButton(
+                tooltip: 'Nasıl oynanır',
+                onPressed: () => _openHowToPlay(context),
+                icon: const Icon(Icons.help_outline),
+                color: AppPalette.text,
               ),
             ),
           ),
