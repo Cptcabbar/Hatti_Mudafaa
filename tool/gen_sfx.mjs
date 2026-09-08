@@ -188,34 +188,34 @@ writeWav('mine.wav', render(0.34, (buf, n) => {
 }));
 
 // =========================================================================
-// 4) Dikenli tel  (YENİ — metalik, tiz, hışırtılı; alçak ton yok)
+// 4) Dikenli tel  (YENİ v3 — gergin metal telin "twang"i: temiz inharmonik
+//    çınlama + perde kayması, gürültü yalnızca hafif aksan)
 // =========================================================================
 seedRnd(404);
-writeWav('wire.wav', render(0.44, (buf, n) => {
-  const partials = [3150, 4720, 6300, 7850, 9450];
-  const rasp = makeSVF();
-  const hiss = makeSVF();
-  const hp1 = makeSVF();
+writeWav('wire.wav', render(0.5, (buf, n) => {
+  const B = 0.0009;                    // tel sertliği → inharmonisite (metalik)
+  const f0a = 480, f0b = 690;          // gerilirken perde yukarı kayar
+  const amp = [1.0, 0.78, 0.6, 0.48, 0.4, 0.32, 0.24, 0.17, 0.12];
+  const tau = [0.36, 0.26, 0.21, 0.17, 0.14, 0.115, 0.09, 0.075, 0.06];
+  const phase = new Float64Array(amp.length);
+  const sizzle = makeSVF();
   for (let i = 0; i < n; i++) {
     const t = i / SR;
-    // tiz inharmonik metal çınlaması
+    const f0 = f0a + (f0b - f0a) * Math.min(1, t / 0.045);
     let ring = 0;
-    for (let p = 0; p < partials.length; p++) {
-      ring += (1 / (p + 1.4)) * Math.sin(2 * Math.PI * partials[p] * t) *
-        Math.exp(-t / (0.13 - p * 0.012));
+    for (let p = 0; p < amp.length; p++) {
+      const k = p + 1;
+      phase[p] += (2 * Math.PI * f0 * k * (1 + B * k * k)) / SR;
+      ring += amp[p] * Math.sin(phase[p]) * Math.exp(-t / tau[p]);
     }
-    ring *= env(t, 0.002, 0.11) * 0.34;
-    // parlak hışırtı (çift türevlenmiş gürültü + hızlı çırpınma)
-    const bright = hp1(hp1(white(), 6500, 0.8).high, 6500, 0.8).high;
-    const flut = 0.45 + 0.55 * Math.sin(2 * Math.PI * 24 * t + Math.sin(t * 80));
-    const hs = hiss(bright, 6800, 2).band * env(t, 0.004, 0.15) * flut * 0.4;
-    // kısa metalik sürtme (yüksek AM'li dar bant)
-    const am = t < 0.12 ? (Math.sin(2 * Math.PI * 58 * t) > 0 ? 1 : 0.3) : 0;
-    const rs = rasp(white(), 3600, 3).band * am * env(t, 0.002, 0.06) * 0.22;
-    // yukarı süpüren "zing"
-    const zf = 4200 + 2600 * Math.min(1, t / 0.06);
-    const zing = Math.sin(2 * Math.PI * zf * t) * env(t, 0.003, 0.02) * 0.14;
-    buf[i] = ring + hs + rs + zing;
+    ring *= (t < 0.0025 ? t / 0.0025 : 1) * 0.3;
+    // ince metalik sizzle — sadece doku
+    const sz = sizzle(white(), 3800, 2).band * Math.exp(-t / 0.11) * 0.08;
+    buf[i] = ring + sz;
+  }
+  // diken şıngırtıları — birkaç kısa tiz metalik tık
+  for (const at of [0.008, 0.05, 0.1, 0.165, 0.24]) {
+    tick(buf, at, 0.3 + rnd() * 0.18, 2600 + rnd() * 1800, 3.5);
   }
 }));
 

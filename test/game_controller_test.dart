@@ -124,6 +124,33 @@ void main() {
     });
   });
 
+  group('duraklat (setPaused)', () {
+    test('duraklatınca sayaç işlemez, sürdürünce devam eder', () async {
+      final c = GameController(
+        timed: true,
+        turnDuration: const Duration(milliseconds: 400),
+      );
+      c.setPaused(true);
+      expect(c.acceptsInput, isFalse);
+
+      await Future<void>.delayed(const Duration(milliseconds: 900));
+      // Duraklatmada hamle olmamalı (otomatik ilerleme yok).
+      expect(c.state.ply, 0);
+      expect(c.turn, Player.p1);
+
+      c.setPaused(false);
+      expect(c.acceptsInput, isTrue);
+      c.dispose();
+    });
+
+    test('duraklatma tahta girişini kilitler', () {
+      final c = make()..setPaused(true);
+      c.tapBoard(metrics.cellCenter(Square.parse('d2')), metrics);
+      expect(c.state.pawnP1, Square.parse('d1')); // hareket etmedi
+      c.dispose();
+    });
+  });
+
   group('süreli mod', () {
     test('süre dolunca sıradaki asker hedefe doğru otomatik ilerler', () async {
       final c = GameController(

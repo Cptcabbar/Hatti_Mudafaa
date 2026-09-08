@@ -135,8 +135,10 @@ class _GameScreenState extends State<GameScreen> {
       return;
     }
     _dialogOpen = true;
+    controller.setPaused(true); // sayaç + AI dursun; oyun arkada ilerlemesin
     final leave = await showDialog<bool>(
       context: context,
+      barrierDismissible: true,
       builder: (context) => AlertDialog(
         title: const Text('Oyundan çık'),
         content: const Text(
@@ -155,7 +157,11 @@ class _GameScreenState extends State<GameScreen> {
       ),
     );
     _dialogOpen = false;
-    if (leave == true && mounted) Navigator.of(context).pop();
+    if (leave == true && mounted) {
+      Navigator.of(context).pop();
+    } else if (mounted) {
+      controller.setPaused(false); // "Vazgeç" / dışına dokunma → oyuna devam
+    }
   }
 
   @override
@@ -169,6 +175,28 @@ class _GameScreenState extends State<GameScreen> {
         body: Stack(
           children: [
             SafeArea(child: _buildGame()),
+            // Çıkış "×" — ekranın en sol-üst köşesinde, her şeyin üstünde
+            // (tahtadan tamamen ayrı; hep aynı yerde, rahat basılır bir hedef).
+            SafeArea(
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: IconButton.filledTonal(
+                    tooltip: 'Oyundan çık',
+                    iconSize: 22,
+                    style: IconButton.styleFrom(
+                      minimumSize: const Size(44, 44),
+                      backgroundColor:
+                          AppPalette.surface.withValues(alpha: 0.82),
+                      foregroundColor: AppPalette.text,
+                    ),
+                    onPressed: _confirmAndExit,
+                    icon: const Icon(Icons.close),
+                  ),
+                ),
+              ),
+            ),
             if (!_sceneReady)
               const Positioned.fill(
                 child: LoadingView(message: 'Cephe hazırlanıyor'),
@@ -194,24 +222,6 @@ class _GameScreenState extends State<GameScreen> {
           Padding(
             padding: const EdgeInsets.all(8),
             child: ClipRect(child: GameWidget(game: game)),
-          ),
-          // Köşede küçük çıkış "×" — eskiden sol-orta'daydı ve telefonda
-          // tahtanın üstüne denk gelip oyuncular hamle yaparken oyundan
-          // çıkıyordu. Artık köşede + onay diyaloğu arkasında.
-          Positioned(
-            left: 4,
-            top: 4,
-            child: IconButton.filledTonal(
-              tooltip: 'Çıkış',
-              iconSize: 18,
-              visualDensity: VisualDensity.compact,
-              style: IconButton.styleFrom(
-                backgroundColor: AppPalette.surface.withValues(alpha: 0.72),
-                foregroundColor: AppPalette.text,
-              ),
-              onPressed: _confirmAndExit,
-              icon: const Icon(Icons.close),
-            ),
           ),
           if (widget.timed)
             // İnce kenar göstergesi — ekranın en sağına yaslı, biraz dışına

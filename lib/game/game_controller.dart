@@ -68,6 +68,10 @@ class GameController extends ChangeNotifier {
   /// `dispose` sonrası geç dönen AI görevini yutmak için.
   bool _disposed = false;
 
+  /// Oyun geçici olarak durduruldu mu (ör. "Oyundan çık" onay diyaloğu açıkken).
+  /// Sayaç işlemez, AI hamle başlatmaz, tahta girişi kapalı.
+  bool _paused = false;
+
   /// Her durum değişiminde artar — bekleyen AI görevi araya undo/restart
   /// girdiğini bundan anlar (BoardState kimlik/eşitlik taşımıyor).
   int _gen = 0;
@@ -97,8 +101,28 @@ class GameController extends ChangeNotifier {
   bool get isAiTurn =>
       vsAi && !_state.isOver && _state.turn == aiPlayer;
 
-  /// İnsan oyuncu şu an tahtaya müdahale edebilir mi (AI turu / düşünme kilidi).
-  bool get acceptsInput => !_state.isOver && !_aiThinking && !isAiTurn;
+  /// İnsan oyuncu şu an tahtaya müdahale edebilir mi (AI turu / düşünme / duraklatma kilidi).
+  bool get acceptsInput =>
+      !_state.isOver && !_aiThinking && !isAiTurn && !_paused;
+
+  bool get paused => _paused;
+
+  /// Oyunu duraklat / sürdür ("Oyundan çık" diyaloğu bunu kullanır). Duraklatma:
+  /// sayaç durur, AI beklemede kalır. Sürdürme: sayaç yeniden başlar, sıra
+  /// AI'daysa yeniden düşünmeye geçer; duraklatma sırasında çözülen eski AI
+  /// hamleleri (`_gen`) yutulur.
+  void setPaused(bool value) {
+    if (_paused == value || _disposed) return;
+    _paused = value;
+    if (value) {
+      _gen++;
+      _ticker?.cancel();
+    } else if (!_state.isOver) {
+      _startTurnTimer();
+      _maybeStartAiTurn();
+    }
+    notifyListeners();
+  }
 
   /// Kalan tur süresi (saniye). Süreli mod kapalıysa 0.
   double get secondsLeft => _secondsLeft;
@@ -240,7 +264,7 @@ class GameController extends ChangeNotifier {
 
   /// Sıra AI'ya geçtiyse "düşünüyor" durumuna al ve hamleyi zamanla.
   void _maybeStartAiTurn() {
-    if (_disposed || _aiThinking || !isAiTurn) return;
+    if (_disposed || _paused || _aiThinking || !isAiTurn) return;
     _aiThinking = true;
     _ticker?.cancel(); // AI turunda sayaç işlemez
     _secondsLeft = 0;
@@ -285,8 +309,8 @@ class GameController extends ChangeNotifier {
 
   void _startTurnTimer() {
     _ticker?.cancel();
-    if (!timed || _state.isOver) {
-      _secondsLeft = 0;
+    if (!timed || _state.isOver || _paused) {
+      if (!_paused) _secondsLeft = 0;
       return;
     }
     _secondsLeft = turnDuration.inMilliseconds / 1000.0;
