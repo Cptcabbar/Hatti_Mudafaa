@@ -123,3 +123,32 @@ flutter build ipa --release          # App Store Connect'e Transporter ile yükl
 
 App Store metinleri, gizlilik etiketleri, ATT ve reklam izinleri **Faz 3**
 kapsamındadır — bkz. `ROADMAP.md`.
+
+---
+
+## Web (dev önizleme + playtest dağıtımı)
+
+`flutter build web --release` → `build/web/`. Hosting notları (itch.io `<base
+href>` yaması, `bsdtar` zip, `*.symbols` temizliği) bellekte / `ROADMAP.md`
+"Playtest / dağıtım".
+
+### Service worker önbelleği
+
+Flutter web varsayılan olarak bir **service worker** kaydeder ve tüm uygulamayı
+tarayıcı önbelleğine alır. Bu, prod (itch.io / kendi site) için iyidir —
+çevrimdışı çalışır, yeni sürüm birkaç yüklemede otomatik güncellenir. Ama
+**yerel geliştirme önizlemesinde** eski sürümü inatla servis eder (`?t=` ve
+`Cache-Control: no-store` bile SW cache'ini geçmez).
+
+- **Yerel önizleme:** `flutter build web --release --pwa-strategy=none` (SW
+  kaydı üretilmez) + `no-store` gönderen bir statik sunucu.
+- **Takılan SW'yi temizleme:** DevTools → Application → Service Workers →
+  Unregister; ya da gizli sekme.
+- **Prod build:** düz `flutter build web --release` (SW açık kalsın).
+
+### Ses varlıkları
+
+`assets/audio/` — müzik (`Before_the_Iron_Gates.mp3`) + `sfx/*.wav` (sentetik,
+`tool/gen_sfx.mjs`). `pubspec.yaml` her iki dizini ayrı listeler (Flutter
+varlık dizinleri özyinelemeli değil). Web'de ses ilk kullanıcı dokunuşundan
+sonra başlar (tarayıcı autoplay politikası). Bkz. `assets/audio/README.md`.

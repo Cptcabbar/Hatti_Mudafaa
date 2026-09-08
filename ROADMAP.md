@@ -190,7 +190,7 @@ Kilitlenen kararlar: Flutter+Flame · Supabase · Quoridor-türevi mekanik + tam
 
 - [ ] Tema motoru (art / palet / sfx config ile değişir)
 - [ ] **⚖️ En az 2. tema** — her tema için görsel varlık lisans/özgünlük kaydı; gerçek ordu amblemleri, logoları, insan benzerlikleri **kullanılmadı** (marka + kişilik hakları); jenerik estetik
-- [ ] **⚖️ Ses efektleri + müzik** — royalty-free + ticari + uygulamaya gömme izinli lisans; kayıtları `legal-clearance.md`'ye
+- [~] **⚖️ Ses efektleri + müzik** — hat kuruldu: `lib/audio/game_music.dart` (arka plan müziği `assets/audio/Before_the_Iron_Gates.mp3`, döngü, "Müzik" anahtarı) + `lib/audio/game_sfx.dart` (4 **sentetik** SFX — `tool/gen_sfx.mjs`: adım/karda-adım/mayın/tel; "Ses" anahtarı; `board_component` hamle-diff'inden tetiklenir). **Kalan:** müzik parçasının ⚖️ ticari + gömme lisans kaydı `legal-clearance.md`'ye (SFX'ler %100 özgün sentez); tema motoruna SFX seti bağlama; haptik
 - [ ] Haptik geri bildirim
 - [ ] İnteraktif öğretici / onboarding
 - [ ] İstatistik / profil ekranı
