@@ -108,6 +108,7 @@ Kilitlenen kararlar: Flutter+Flame · Supabase · Quoridor-türevi mekanik + tam
 - [x] **Süreli mod** — her tur 30 sn, sağ kenarda azalan çubuk + iki uçta okunur sayaç; süre dolunca asker hedefe doğru otomatik ilerler; ana menüde aç/kapa
 - [x] Hamle animasyonları — piyon hedef kareye ~200ms kayar (easeOutCubic + hafif zıplama) · engel ~240ms ölçeklenerek belirir · adım/engel tozu (`_advanceAnimations`, `_Dust`, commit `ef2bf2b`). Cephanelik emoji → `_SupplyMark` (mermi logosu); mod çipleri özel `_MineMark`/`_WireMark` + maliyet satırı (`0798e38`/`6fcff6f`)
 - [x] Kazanma diyaloğu + yeniden başlat
+- [x] **Nasıl Oynanır ekranı** — ana menüde sol üst "?" (`Icons.help_outline`) → `HowToPlayScreen` (`lib/ui/how_to_play_screen.dart`): AMAÇ / SIRA / HAREKET / ENGELLER / SÜRE, `docs/rules.md`'nin kısa oyuncu özeti; simgeler `lib/ui/game_marks.dart`'a taşındı (public `SupplyMark`/`MineMark`/`WireMark`). Commit `0ad0e47`
 
 ### Uygulama kabuğu
 - [x] Ana menü — sert geçiş yapıldı: `AppPalette`/`buildAppTheme` (amber vurgu, yeşil tohum kaldırıldı), köşeli "saha tabelası" buton, zenginleştirilmiş `ThemeBackdrop` (siper silüeti + savaş enkazı + çamurlu ön plan + sektör-haritası hayalet tahta). Tam Ayarlar ekranı + dil seçimi sonra
