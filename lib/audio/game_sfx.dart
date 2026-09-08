@@ -57,7 +57,7 @@ class GameSfx {
 
   /// Engel yerleştirildi.
   void barrier({required bool isWire}) =>
-      _play(isWire ? _wire : _mine, isWire ? 0.62 : 0.8);
+      _play(isWire ? _wire : _mine, isWire ? 0.72 : 0.8);
 
   /// Anahtar / toggle değişti (menü, ayarlar).
   void uiSwitch() => _play(_uiSwitch, 0.55);

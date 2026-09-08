@@ -22,7 +22,12 @@ class GameScreen extends StatefulWidget {
     this.aiDifficulty,
     this.config = GameConfig.v1,
     this.snow = false,
+    @visibleForTesting this.debugController,
   });
+
+  /// Yalnızca test: hazır bir [GameController] enjekte et (kazanma diyaloğu vb.
+  /// akışlarını hızlı kurmak için). Verilirse `config`/`aiDifficulty` yok sayılır.
+  final GameController? debugController;
 
   final bool timed;
 
@@ -50,20 +55,24 @@ class _GameScreenState extends State<GameScreen> {
   bool _dialogOpen = false;
   bool _sceneReady = false;
 
+  bool get _ownsController => widget.debugController == null;
+
   @override
   void initState() {
     super.initState();
-    controller = GameController(
-      config: widget.config,
-      timed: widget.timed,
-      aiDifficulty: widget.aiDifficulty,
-    );
+    controller = widget.debugController ??
+        GameController(
+          config: widget.config,
+          timed: widget.timed,
+          aiDifficulty: widget.aiDifficulty,
+        );
     game = HattiBoardGame(
       controller,
       hotSeat: widget.hotSeat,
       snow: widget.snow,
     );
     controller.addListener(_onControllerChange);
+    _onControllerChange(); // zaten bitmiş bir durumla açılırsa diyaloğu göster
     // Flame sahnesi yüklenene + shader ısınması (ilk kareler eğimi tüm aralıkta
     // gezdirir) bitene kadar ortak yükleme görünümü tam ekran örtsün — böylece
     // ilk sıra değişimi dönüşünde shader derleme takılması görünmez.
@@ -78,7 +87,7 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void dispose() {
     controller.removeListener(_onControllerChange);
-    controller.dispose();
+    if (_ownsController) controller.dispose();
     super.dispose();
   }
 
@@ -100,28 +109,34 @@ class _GameScreenState extends State<GameScreen> {
     } else {
       title = '${playerName(winner)} kazandı';
     }
-    await showDialog<void>(
+    // true = yeniden başlat · false = ana menü · null = geri tuşu (yerinde kal)
+    final again = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: Text(title),
-        content: const Text('Yeni bir oyun başlatmak ister misin?'),
+        content: const Text('Yeniden mi oynamak istersin, ana menüye mi?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Kapat'),
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Ana menü'),
           ),
           FilledButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _dialogOpen = false;
-              controller.restart();
-            },
+            onPressed: () => Navigator.of(context).pop(true),
             child: const Text('Yeniden başlat'),
           ),
         ],
       ),
     );
+    _dialogOpen = false; // hangi seçenek olursa olsun kilit açılır
+    if (!mounted) return;
+    if (again == true) {
+      controller.restart();
+    } else if (again == false) {
+      Navigator.of(context).pop(); // ana menüye
+    }
+    // again == null → kullanıcı geri tuşuna bastı: bitmiş tahtada kalır,
+    // köşedeki "×" ile menüye dönebilir.
   }
 
   static String playerName(Player p) => p == Player.p1 ? 'Mavi' : 'Kırmızı';

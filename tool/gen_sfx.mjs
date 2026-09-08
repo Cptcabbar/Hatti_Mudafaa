@@ -188,34 +188,37 @@ writeWav('mine.wav', render(0.34, (buf, n) => {
 }));
 
 // =========================================================================
-// 4) Dikenli tel  (YENİ v3 — gergin metal telin "twang"i: temiz inharmonik
-//    çınlama + perde kayması, gürültü yalnızca hafif aksan)
+// 4) Dikenli tel  (v4 — kullanıcı: "metalik + poşet sesi karışımı")
+//    Yoğun düzensiz yüksek-frekans çıtırtı (poşet) → metalik frekanslarda
+//    çınlatılır (rezonatör). Kuru poşet + metalik çınlama birlikte duyulur.
 // =========================================================================
 seedRnd(404);
-writeWav('wire.wav', render(0.5, (buf, n) => {
-  const B = 0.0009;                    // tel sertliği → inharmonisite (metalik)
-  const f0a = 480, f0b = 690;          // gerilirken perde yukarı kayar
-  const amp = [1.0, 0.78, 0.6, 0.48, 0.4, 0.32, 0.24, 0.17, 0.12];
-  const tau = [0.36, 0.26, 0.21, 0.17, 0.14, 0.115, 0.09, 0.075, 0.06];
-  const phase = new Float64Array(amp.length);
-  const sizzle = makeSVF();
+writeWav('wire.wav', render(0.42, (buf, n) => {
+  // 1) Poşet çıtırtı yatağı — ~55 minik darbe, ~0.30 sn'ye YAYILMIŞ + AM hış
+  const crk = new Float32Array(n);
+  for (let k = 0; k < 55; k++) {
+    grain(crk, rnd() * 0.30, 0.0006 + rnd() * 0.0022,
+      0.35 + 0.65 * rnd(), 2500 + rnd() * 3500);
+  }
+  const bp = makeSVF();
   for (let i = 0; i < n; i++) {
     const t = i / SR;
-    const f0 = f0a + (f0b - f0a) * Math.min(1, t / 0.045);
-    let ring = 0;
-    for (let p = 0; p < amp.length; p++) {
-      const k = p + 1;
-      phase[p] += (2 * Math.PI * f0 * k * (1 + B * k * k)) / SR;
-      ring += amp[p] * Math.sin(phase[p]) * Math.exp(-t / tau[p]);
-    }
-    ring *= (t < 0.0025 ? t / 0.0025 : 1) * 0.3;
-    // ince metalik sizzle — sadece doku
-    const sz = sizzle(white(), 3800, 2).band * Math.exp(-t / 0.11) * 0.08;
-    buf[i] = ring + sz;
+    crk[i] += bp(white(), 3000, 1.3).band * env(t, 0.005, 0.14) *
+      (0.45 + 0.55 * Math.sin(2 * Math.PI * 15 * t + Math.sin(t * 53))) * 0.35;
   }
-  // diken şıngırtıları — birkaç kısa tiz metalik tık
-  for (const at of [0.008, 0.05, 0.1, 0.165, 0.24]) {
-    tick(buf, at, 0.3 + rnd() * 0.18, 2600 + rnd() * 1800, 3.5);
+  // 2) Metalik rezonans — çıtırtıyı metal frekanslarında çınlat (metal-öne)
+  const r1 = makeSVF(), r2 = makeSVF(), r3 = makeSVF(), lp = makeLowpass(8500);
+  for (let i = 0; i < n; i++) {
+    const t = i / SR;
+    const x = crk[i];
+    const met = r1(x, 1400, 9).band * 1.0 +
+      r2(x, 2600, 10).band * 0.85 +
+      r3(x, 4200, 8).band * 0.55;
+    buf[i] = lp(x * 0.42 + met * 1.55 * Math.exp(-t / 0.32));
+  }
+  // 3) Birkaç metalik zing (poşetin arasından)
+  for (const at of [0.01, 0.06, 0.13, 0.21]) {
+    tick(buf, at, 0.28 + rnd() * 0.14, 2400 + rnd() * 2000, 4);
   }
 }));
 
