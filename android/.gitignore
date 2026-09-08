@@ -12,3 +12,6 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+# İstisna: app/debug.keystore bilerek izlenir — mağaza anahtarı değil, herkese
+# açık şifreli sabit test anahtarı (bkz. app/build.gradle.kts).
+!app/debug.keystore

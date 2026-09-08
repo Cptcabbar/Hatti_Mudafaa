@@ -7,10 +7,14 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-// Release imzası: android/key.properties varsa oradan (mağaza anahtarı), yoksa
-// debug anahtarına düşülür — böylece keystore olmadan da `flutter build`/`run
-// --release` çalışır. Şablon: android/key.properties.example. Gerçek dosya +
-// *.jks/*.keystore android/.gitignore'da.
+// İmzalama:
+//  • release  → android/key.properties varsa oradan (mağaza yükleme anahtarı).
+//  • yoksa    → app/debug.keystore (repoya BİLEREK konuldu; şifresi herkese
+//               açık "android"). Mağaza anahtarı DEĞİL — amacı: CI'nın ürettiği
+//               test APK'larının her derlemede AYNI imzayla çıkması, böylece
+//               test cihazlarında sürümü kaldırmadan güncelleyebilmek.
+// Şablon: android/key.properties.example. Gerçek yükleme anahtarı + key.properties
+// android/.gitignore'da.
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
 if (keystorePropertiesFile.exists()) {
@@ -42,6 +46,14 @@ android {
     }
 
     signingConfigs {
+        // Repoya konulan sabit test anahtarı (debug + key.properties yoksa
+        // release fallback). Standart Android debug anahtarı değerleri.
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
         // Release imza yapılandırması yalnızca key.properties varsa oluşturulur.
         if (keystorePropertiesFile.exists()) {
             create("release") {

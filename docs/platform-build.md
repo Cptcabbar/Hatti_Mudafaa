@@ -5,10 +5,22 @@ Uygulama kodu tamamen taşınabilir (Flutter + Flame, saf-Dart `game_core` /
 ve marka varlıklarının nasıl üretildiğini anlatır.
 
 > **Bu geliştirme makinesi:** Android SDK yok, Mac yok. Native derlemeler
-> **CI** üzerinden doğrulanır (`.github/workflows/ci.yml`):
-> - `build-android` — her push/PR, `flutter build apk --release` (Linux).
+> **CI** üzerinden yapılır/doğrulanır (`.github/workflows/ci.yml`):
+> - `build-android` — her push/PR, `flutter build apk --release` (Linux);
+>   çıktı APK'sı **artifact** olarak yüklenir.
 > - `build-ios` — yalnız `main`'e push + elle tetik, `flutter build ios
 >   --release --no-codesign` (macOS runner).
+
+## Test APK'sı (yan yükleme)
+
+1. GitHub → **Actions** → en son `CI` çalışması → `build-android` job'ı.
+2. Sayfanın altındaki **Artifacts → `hatti-mudafaa-apk`** indir (zip; içinde
+   `app-release.apk`).
+3. APK'yı test cihazına gönder (mesaj / drive / kablo) → aç → "bilinmeyen
+   kaynaklara izin ver" → kur.
+4. APK `android/app/debug.keystore` ile imzalıdır (sabit test anahtarı) —
+   her CI derlemesi aynı imza, yani yeni sürümü **kaldırmadan** güncelleyebilirsin.
+   Bu Play Store anahtarı **değildir**.
 
 ---
 
@@ -52,13 +64,15 @@ Her yükleme öncesi `+build` numarasını artır.
 | targetSdk / compileSdk | `flutter.*` (SDK ile güncellenir) | aynı |
 | Yön | `portrait` | `AndroidManifest.xml` |
 
-### Release imzalama
+### İmzalama
 
-`android/app/build.gradle.kts` `android/key.properties` varsa oradan imzalar,
-yoksa **debug** anahtarına düşer (keystore olmadan da `flutter build`/`run
---release` çalışır).
+| Durum | Anahtar |
+|---|---|
+| `key.properties` **yok** | `android/app/debug.keystore` — repoda, şifre herkese açık `android`. Test/CI APK'ları hep aynı imza. |
+| `key.properties` **var** | Oradaki mağaza yükleme anahtarı (gitignore'da). |
 
-Mağaza anahtarı üretimi:
+`debug.keystore` bilerek commit'li — amacı test cihazlarında sürüm güncellemenin
+sorunsuz olması. **Play Store'a bununla çıkılmaz.** Mağaza anahtarı üretimi:
 
 ```sh
 keytool -genkey -v -keystore ~/hatti-mudafaa-upload.jks \

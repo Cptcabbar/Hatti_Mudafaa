@@ -62,10 +62,20 @@ jobs:
 
       - run: flutter pub get
 
-      # Keystore yok → debug imzaya düşülür (android/app/build.gradle.kts).
-      # Release yolu (tree-shake + AOT) yine de derlenir.
+      # key.properties yok → app/debug.keystore ile imzalanır (sabit test
+      # imzası). Release yolu (tree-shake + AOT) tam derlenir.
       - name: flutter build apk --release
         run: flutter build apk --release
+
+      # İndirilebilir APK — Actions çalışmasının "Artifacts" bölümünden alınır,
+      # test cihazlarına yan yüklenir / paylaşılır.
+      - name: APK'yı yükle
+        uses: actions/upload-artifact@v4
+        with:
+          name: hatti-mudafaa-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
 
   # iOS derlemesi yalnız main'e push + elle tetik (macOS runner 10x dakika çarpanı).
   build-ios:
