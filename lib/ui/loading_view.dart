@@ -28,7 +28,7 @@ class LoadingView extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const _RadarSpinner(),
+                  const RadarSpinner(),
                   const SizedBox(height: 22),
                   Text(
                     message,
@@ -50,15 +50,18 @@ class LoadingView extends StatelessWidget {
 }
 
 /// Amber radar taraması: sabit menzil halkaları + dönen tarama kaması.
-/// Askeri temaya uygun, "çalışıyor" hissini tek bakışta verir.
-class _RadarSpinner extends StatefulWidget {
-  const _RadarSpinner();
+/// Askeri temaya uygun, "çalışıyor" hissini tek bakışta verir. Yükleme
+/// ekranında büyük, "yapay zeka düşünüyor" şeridinde küçük kullanılır.
+class RadarSpinner extends StatefulWidget {
+  const RadarSpinner({super.key, this.size = 64});
+
+  final double size;
 
   @override
-  State<_RadarSpinner> createState() => _RadarSpinnerState();
+  State<RadarSpinner> createState() => _RadarSpinnerState();
 }
 
-class _RadarSpinnerState extends State<_RadarSpinner>
+class _RadarSpinnerState extends State<RadarSpinner>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
@@ -74,8 +77,8 @@ class _RadarSpinnerState extends State<_RadarSpinner>
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 64,
-      height: 64,
+      width: widget.size,
+      height: widget.size,
       child: AnimatedBuilder(
         animation: _controller,
         builder: (context, _) =>

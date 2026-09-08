@@ -1,5 +1,6 @@
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
+import 'package:game_ai/game_ai.dart';
 import 'package:game_core/game_core.dart';
 
 import '../game/board_component.dart';
@@ -14,13 +15,21 @@ import 'loading_view.dart';
 /// kendi paneli kendi tarafındadır (üstteki 180° dönük). Sıra sende değilken
 /// panelin katlanır. Süreli modda her tur 30 sn — sayaç sağ kenarda.
 class GameScreen extends StatefulWidget {
-  const GameScreen({super.key, this.timed = true, this.hotSeat = true});
+  const GameScreen({
+    super.key,
+    this.timed = true,
+    this.hotSeat = true,
+    this.aiDifficulty,
+  });
 
   final bool timed;
 
   /// `true`: iki kişi aynı cihazda — tahta her sıra dönen oyuncuya bakar.
-  /// `false` (Faz 2, yapay zeka): tahta sabit, yerel oyuncuya bakar.
+  /// `false` (yapay zeka): tahta sabit, yerel oyuncuya bakar.
   final bool hotSeat;
+
+  /// Doluysa oyun yapay zekaya karşı (Kırmızı'yı AI oynar); süre yoktur.
+  final AiDifficulty? aiDifficulty;
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -35,7 +44,10 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void initState() {
     super.initState();
-    controller = GameController(timed: widget.timed);
+    controller = GameController(
+      timed: widget.timed,
+      aiDifficulty: widget.aiDifficulty,
+    );
     game = HattiBoardGame(controller, hotSeat: widget.hotSeat);
     controller.addListener(_onControllerChange);
     // Flame sahnesi yüklenene + shader ısınması (ilk kareler eğimi tüm aralıkta
@@ -66,11 +78,19 @@ class _GameScreenState extends State<GameScreen> {
   Future<void> _showWinDialog() async {
     if (!mounted) return;
     final winner = controller.state.winner!;
+    final String title;
+    if (controller.vsAi) {
+      title = winner == controller.aiPlayer
+          ? 'Yapay zeka kazandı'
+          : 'Kazandın!';
+    } else {
+      title = '${playerName(winner)} kazandı';
+    }
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: Text('${playerName(winner)} kazandı'),
+        title: Text(title),
         content: const Text('Yeni bir oyun başlatmak ister misin?'),
         actions: [
           TextButton(
@@ -161,7 +181,8 @@ class _GameScreenState extends State<GameScreen> {
 
     return Column(
       children: [
-        panel(Player.p2, rotated: true),
+        // Yapay zeka modunda kimse üst tarafta oturmaz — panel düz dursun.
+        panel(Player.p2, rotated: widget.hotSeat),
         gameArea,
         panel(Player.p1, rotated: false),
       ],
@@ -186,7 +207,11 @@ class _PlayerPanel extends StatelessWidget {
   /// Tarafın soluk boyası — asker miğferiyle aynı ton (`_Faction.p1/p2`).
   Color get _accent => player == Player.p1 ? AppPalette.p1 : AppPalette.p2;
 
-  bool get _active => controller.turn == player && !controller.isOver;
+  /// Bu panel yapay zekaya mı ait — öyleyse etkileşimli gövde hiç açılmaz.
+  bool get _isAiPanel => controller.vsAi && controller.aiPlayer == player;
+
+  bool get _active =>
+      controller.turn == player && !controller.isOver && !_isAiPanel;
 
   @override
   Widget build(BuildContext context) {
@@ -221,7 +246,10 @@ class _PlayerPanel extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _TrenchEdge(color: _accent, active: _active),
+          _TrenchEdge(
+            color: _accent,
+            active: _active || (_isAiPanel && controller.aiThinking),
+          ),
           body,
         ],
       ),
@@ -234,22 +262,29 @@ class _PlayerPanel extends StatelessWidget {
   }
 
   Widget _foldedBody(BuildContext context) {
+    if (_isAiPanel && controller.aiThinking) return const _ThinkingStrip();
     final over = controller.isOver;
+    final IconData icon;
+    final String label;
+    if (over) {
+      icon = Icons.flag_outlined;
+      label = 'Oyun bitti';
+    } else if (_isAiPanel) {
+      icon = Icons.smart_toy_outlined;
+      label = '${_GameScreenState.playerName(player)} · yapay zeka';
+    } else {
+      icon = Icons.lock_outline;
+      label = '${_GameScreenState.playerName(player)} · sıra rakipte';
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            over ? Icons.flag_outlined : Icons.lock_outline,
-            size: 15,
-            color: _accent,
-          ),
+          Icon(icon, size: 15, color: _accent),
           const SizedBox(width: 8),
           Text(
-            over
-                ? 'Oyun bitti'
-                : '${_GameScreenState.playerName(player)} · sıra rakipte',
+            label,
             style: const TextStyle(
               fontWeight: FontWeight.w600,
               color: AppPalette.text,
@@ -370,6 +405,36 @@ class _PlayerPanel extends StatelessWidget {
               ],
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Yapay zeka hamlesini düşünürken panelde görünen şerit — yükleme ekranıyla
+/// aynı görsel dil (amber radar taraması). Tahtayı örtmez: insan oyuncu bu
+/// 3-5 sn'lik pencerede kendi hamlesini planlayabilir.
+class _ThinkingStrip extends StatelessWidget {
+  const _ThinkingStrip();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          RadarSpinner(size: 20),
+          SizedBox(width: 12),
+          Text(
+            'YAPAY ZEKA DÜŞÜNÜYOR',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+              letterSpacing: 2.5,
+              color: AppPalette.amber,
+            ),
+          ),
         ],
       ),
     );

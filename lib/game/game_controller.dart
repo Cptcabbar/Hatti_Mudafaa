@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
+import 'package:game_ai/game_ai.dart';
 import 'package:game_core/game_core.dart';
 
 import 'board_metrics.dart';
@@ -18,9 +20,16 @@ class GameController extends ChangeNotifier {
     GameConfig config = GameConfig.v1,
     this.timed = true,
     this.turnDuration = const Duration(seconds: 30),
+    this.aiDifficulty,
+    this.aiPlayer = Player.p2,
+    int? aiSeed,
   })  : _config = config,
-        _state = BoardState.initial(config) {
+        _state = BoardState.initial(config),
+        _engine = aiDifficulty == null
+            ? null
+            : NegamaxEngine(aiDifficulty, seed: aiSeed) {
     _startTurnTimer();
+    _maybeStartAiTurn();
   }
 
   final GameConfig _config;
@@ -28,6 +37,25 @@ class GameController extends ChangeNotifier {
   /// Süreli mod açık mı (her tur [turnDuration]).
   final bool timed;
   final Duration turnDuration;
+
+  /// Doluysa oyun yapay zekaya karşı; [aiPlayer] hamlelerini AI yapar.
+  final AiDifficulty? aiDifficulty;
+
+  /// Yapay zekanın oynadığı taraf (varsayılan: Kırmızı / P2).
+  final Player aiPlayer;
+
+  final AiEngine? _engine;
+  final Random _rng = Random();
+
+  /// AI şu an hamlesini hesaplıyor / "düşünüyor" (3-5 sn'lik pencere dâhil).
+  bool _aiThinking = false;
+
+  /// `dispose` sonrası geç dönen AI görevini yutmak için.
+  bool _disposed = false;
+
+  /// Her durum değişiminde artar — bekleyen AI görevi araya undo/restart
+  /// girdiğini bundan anlar (BoardState kimlik/eşitlik taşımıyor).
+  int _gen = 0;
 
   BoardState _state;
   final List<BoardState> _history = [];
@@ -40,9 +68,22 @@ class GameController extends ChangeNotifier {
   BoardState get state => _state;
   InteractionMode get mode => _mode;
   Barrier? get preview => _preview;
-  bool get canUndo => _history.isNotEmpty;
+  bool get canUndo => _history.isNotEmpty && !_aiThinking;
   bool get isOver => _state.isOver;
   Player get turn => _state.turn;
+
+  /// Oyun yapay zekaya karşı mı.
+  bool get vsAi => aiDifficulty != null;
+
+  /// Yapay zeka bu an hamlesini düşünüyor — arayüz göstergeyi buna göre açar.
+  bool get aiThinking => _aiThinking;
+
+  /// Sıra yapay zekada mı (oyun sürüyorken).
+  bool get isAiTurn =>
+      vsAi && !_state.isOver && _state.turn == aiPlayer;
+
+  /// İnsan oyuncu şu an tahtaya müdahale edebilir mi (AI turu / düşünme kilidi).
+  bool get acceptsInput => !_state.isOver && !_aiThinking && !isAiTurn;
 
   /// Kalan tur süresi (saniye). Süreli mod kapalıysa 0.
   double get secondsLeft => _secondsLeft;
@@ -72,7 +113,7 @@ class GameController extends ChangeNotifier {
   }
 
   void setMode(InteractionMode m) {
-    if (_mode == m) return;
+    if (!acceptsInput || _mode == m) return;
     _mode = m;
     _preview = null;
     notifyListeners();
@@ -80,7 +121,7 @@ class GameController extends ChangeNotifier {
 
   /// Tahtaya dokunma. [local] = tahta-yerel piksel (0..side).
   void tapBoard(Offset local, BoardMetrics metrics) {
-    if (_state.isOver) return;
+    if (!acceptsInput) return;
     switch (_mode) {
       case InteractionMode.move:
         final sq = metrics.squareAt(local);
@@ -104,7 +145,7 @@ class GameController extends ChangeNotifier {
 
   void rotatePreview() {
     final p = _preview;
-    if (p == null) return;
+    if (!acceptsInput || p == null) return;
     _preview = _rotate(p);
     notifyListeners();
   }
@@ -130,6 +171,7 @@ class GameController extends ChangeNotifier {
   }
 
   void confirmPreview() {
+    if (!acceptsInput) return;
     if (!canConfirmPreview) return; // §5.3 dört koşulu burada zaten doğrulandı
     _apply(PlaceBarrierMove(_preview!), validated: true);
   }
@@ -141,12 +183,19 @@ class GameController extends ChangeNotifier {
   }
 
   void undo() {
-    if (_history.isEmpty) return;
+    if (_aiThinking || _history.isEmpty) return;
+    _gen++;
     _state = _history.removeLast();
+    // Yapay zekaya karşı: bir "geri al" hem AI'nın hem senin son hamleni alır —
+    // yoksa sıra tekrar AI'ya döner ve aynı hamleyi yapardı.
+    if (vsAi && _state.turn == aiPlayer && _history.isNotEmpty) {
+      _state = _history.removeLast();
+    }
     _resetInteraction();
   }
 
   void restart() {
+    _gen++;
     _history.clear();
     _state = BoardState.initial(_config);
     _resetInteraction();
@@ -158,6 +207,7 @@ class GameController extends ChangeNotifier {
   /// başına yüzlerce yol araması + geçici nesne); bu, hamleden hemen sonra
   /// başlayan kamera dönüşünde çöp toplama takılmasına yol açıyordu.
   void _apply(Move move, {bool validated = false}) {
+    _gen++;
     _history.add(_state);
     _state = Rules.applyMove(_state, move, validate: !validated);
     _resetInteraction();
@@ -168,6 +218,48 @@ class GameController extends ChangeNotifier {
     _mode = InteractionMode.move;
     _startTurnTimer();
     notifyListeners();
+    _maybeStartAiTurn();
+  }
+
+  // --- Yapay zeka turu -------------------------------------------------------
+
+  /// Sıra AI'ya geçtiyse "düşünüyor" durumuna al ve hamleyi zamanla.
+  void _maybeStartAiTurn() {
+    if (_disposed || _aiThinking || !isAiTurn) return;
+    _aiThinking = true;
+    _ticker?.cancel(); // AI turunda sayaç işlemez
+    _secondsLeft = 0;
+    notifyListeners();
+    unawaited(_runAiTurn());
+  }
+
+  /// AI hamlesini hesaplar, ardından toplam ~3-5 sn dolana kadar bekler ve
+  /// oynar. Bu pencere insan rakibin de düşünmesi içindir (`docs/rules.md` §6:
+  /// AI modunda tur süresi yoktur). Hesap web'de ana thread'i kısa süre
+  /// (~150 ms) bloklar — isolate'e taşıma ROADMAP Faz 2'de.
+  Future<void> _runAiTurn() async {
+    final gen = _gen;
+    final snapshot = _state;
+    final think = Duration(milliseconds: 3000 + _rng.nextInt(2001)); // 3.0–5.0 sn
+    final sw = Stopwatch()..start();
+
+    // Göstergenin bir kare çizilmesine izin ver, sonra hesapla.
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+
+    Move move;
+    try {
+      move = await _engine!
+          .chooseMove(snapshot, budget: const Duration(milliseconds: 500));
+    } catch (_) {
+      move = _autoMove(); // güvenlik ağı: hedefe en çok yaklaştıran adım
+    }
+
+    final rest = think - sw.elapsed;
+    if (rest > Duration.zero) await Future<void>.delayed(rest);
+
+    if (_disposed || _gen != gen) return; // undo / restart / dispose araya girdi
+    _aiThinking = false;
+    _apply(move, validated: true);
   }
 
   // --- Tur sayacı --------------------------------------------------------------
@@ -215,6 +307,7 @@ class GameController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _ticker?.cancel();
     super.dispose();
   }

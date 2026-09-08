@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hatti_mudafaa/main.dart';
+import 'package:hatti_mudafaa/ui/game_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -38,5 +39,33 @@ void main() {
     expect(find.text('NASIL OYNANIR'), findsOneWidget);
     expect(find.text('AMAÇ'), findsOneWidget);
     expect(find.text('ENGELLER'), findsOneWidget);
+  });
+
+  testWidgets('menüde "Yapay Zekaya Karşı" bölümü + üç zorluk düğmesi', (
+    tester,
+  ) async {
+    await pumpToMenu(tester);
+
+    expect(find.text('YAPAY ZEKAYA KARŞI'), findsOneWidget);
+    expect(find.text('Kolay'), findsOneWidget);
+    expect(find.text('Orta'), findsOneWidget);
+    expect(find.text('Zor'), findsOneWidget);
+
+    // "Zor"a dokununca yapay zeka oyun ekranı açılır (süresiz, sabit tahta).
+    await tester.tap(find.text('Zor'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+
+    final screen = tester.widget<GameScreen>(find.byType(GameScreen));
+    expect(screen.aiDifficulty, isNotNull);
+    expect(screen.timed, isFalse);
+    expect(screen.hotSeat, isFalse);
+
+    // Flame sahnesi + yükleme animasyonu kapanana kadar pompala (bekleyen
+    // zamanlayıcı kalmasın).
+    for (var i = 0; i < 60; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+      if (find.text('Cephe hazırlanıyor').evaluate().isEmpty) break;
+    }
   });
 }

@@ -124,16 +124,17 @@ Kilitlenen kararlar: Flutter+Flame · Supabase · Quoridor-türevi mekanik + tam
 ## FAZ 2 — Yapay zeka rakibi
 
 **Adım 1 bitti** (commit `1d453e8`): AI motoru, saf Dart, arayüzsüz.
+**Adım 2-4 bitti**: motor oyuna bağlandı — menüde "Yapay Zekaya Karşı" + zorluk seçimi, oyun içi "düşünüyor" göstergesi, 3-5 sn'lik hamle penceresi.
 - [x] **⚖️ AI sıfırdan yazıldı** — negamax + alpha-beta + BFS değerlendirme; hazır kod kopyalanmadı
 - [x] Değerlendirme (`game_ai/evaluation.dart`) — `(rakip yol − benim yol)*10 + cephanelik farkı*2 + tempo`; kazanç uç değeri ply ile ölçekli (hızlı kazanç yeğlenir). `Pathfinding.shortestPathToRow` eklendi (engel adaylarını yola değenlerle sınırlamak için)
 - [x] Zaman bütçeli iterative deepening + PV sıralaması + düğüm cap; engel adayları yalnız ağacın üstü (kalan derinlik ≥2) + iki askerin en kısa yoluna değenler → dallanma ~150→~15
 - [x] **Kolay** — 1-ply (rakibi modellemez), %20 rastgele piyon hamlesi, engeli neredeyse hiç kullanmaz · **Orta** — derinlik 2 + küçük gürültü (normal oyuncu) · **Zor** — derinlik 3, gürültüsüz, hatasız. Ölçüm: hard hamlesi ~100-150ms; hard>medium 7/10, medium>easy 10/10
 - [x] Test: illegal hamle yok (3 seviye × 40 konum), evaluation, tek-hamle, bütçe, güç sıralaması — `game_ai` 10 test
-- [ ] AI hesaplaması **isolate** içinde — Adım 2
-- [ ] `GameController` bağlantısı: P2 sırası → "düşünüyor" + ~3-5 sn bekleme + hamle — Adım 2
-- [ ] "Düşünüyor" göstergesi (`LoadingView` dili) — Adım 3
-- [ ] Menüde "Yapay Zekaya Karşı" + zorluk seçimi + seviye göstergesi — Adım 4
-- [ ] **Çıkış kriteri:** üç seviye oynanabilir, zorluk farkı hissediliyor
+- [x] `GameController` bağlantısı: P2 sırası → "düşünüyor" kilidi + hesap + toplam ~3-5 sn (rastgele) bekleme + `_apply` — Adım 2. AI modunda süre yok (`timed:false`), tahta sabit P1'e bakar, üst panel dönmez. "Geri al" AI düşünürken kilitli; bir geri al = AI + insan hamlesi (2 adım).
+- [x] "Düşünüyor" göstergesi — üst panelde `RadarSpinner` (yükleme ekranıyla aynı dil) + "YAPAY ZEKA DÜŞÜNÜYOR"; tahtayı örtmez, ipuçları (yeşil hedef + nişangah) AI sırasında gizli — Adım 3
+- [x] Menüde "YAPAY ZEKAYA KARŞI" bölümü — Kolay/Orta/Zor düğmeleri + altında rütbe şeridi göstergesi (1/2/3 amber şevron) — Adım 4
+- [ ] AI hesaplaması **isolate** içinde (yalnız native derleme; web'de isolate yok — şimdilik ana thread'de ~150ms) — sonra
+- [x] **Çıkış kriteri:** üç seviye menüden oynanabilir; zorluk farkı hissediliyor (easy << medium < hard)
 
 ---
 

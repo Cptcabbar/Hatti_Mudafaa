@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:game_ai/game_ai.dart';
 
 import '../settings.dart';
 import 'app_theme.dart';
@@ -55,10 +56,12 @@ class HomeScreen extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             _TitleBlock(),
-                            SizedBox(height: 56),
+                            SizedBox(height: 44),
                             _PlayButton(),
-                            SizedBox(height: 16),
+                            SizedBox(height: 14),
                             _TimedToggle(),
+                            SizedBox(height: 30),
+                            _AiSection(),
                           ],
                         ),
                       ),
@@ -137,6 +140,185 @@ class _PlayButton extends StatelessWidget {
       ),
     );
   }
+}
+
+/// "YAPAY ZEKAYA KARŞI" bölümü — üç zorluk düğmesi, her birinin altında
+/// seviye rütbesi (1/2/3 şerit). Süre yoktur; tahta yerel oyuncuya sabit bakar.
+class _AiSection extends StatelessWidget {
+  const _AiSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _SectionRule(label: 'YAPAY ZEKAYA KARŞI'),
+        SizedBox(height: 14),
+        Row(
+          children: [
+            Expanded(
+              child: _AiButton(
+                difficulty: AiDifficulty.easy,
+                label: 'Kolay',
+                level: 1,
+              ),
+            ),
+            SizedBox(width: 8),
+            Expanded(
+              child: _AiButton(
+                difficulty: AiDifficulty.medium,
+                label: 'Orta',
+                level: 2,
+              ),
+            ),
+            SizedBox(width: 8),
+            Expanded(
+              child: _AiButton(
+                difficulty: AiDifficulty.hard,
+                label: 'Zor',
+                level: 3,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Ortada başlık, iki yanında ince çizgi.
+class _SectionRule extends StatelessWidget {
+  const _SectionRule({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Expanded(child: Divider(color: AppPalette.line, height: 1)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 3,
+              color: AppPalette.amberDim,
+            ),
+          ),
+        ),
+        const Expanded(child: Divider(color: AppPalette.line, height: 1)),
+      ],
+    );
+  }
+}
+
+/// Tek zorluk düğmesi — köşeli koyu levha; üstte seviye rütbesi, altta ad.
+class _AiButton extends StatelessWidget {
+  const _AiButton({
+    required this.difficulty,
+    required this.label,
+    required this.level,
+  });
+
+  final AiDifficulty difficulty;
+  final String label;
+
+  /// 1 (Kolay) · 2 (Orta) · 3 (Zor) — rütbe şeridi sayısı.
+  final int level;
+
+  void _start(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => GameScreen(
+          hotSeat: false,
+          timed: false,
+          aiDifficulty: difficulty,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppPalette.surfaceHi,
+      child: InkWell(
+        onTap: () => _start(context),
+        child: Container(
+          decoration: BoxDecoration(border: Border.all(color: AppPalette.line)),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _RankInsignia(level: level),
+              const SizedBox(height: 9),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: AppPalette.text,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Zorluk göstergesi: üst üste üç "V" rütbe şeridi; [level] tanesi amber,
+/// kalanı sönük. Askeri rütbe işaretine göz kırpar.
+class _RankInsignia extends StatelessWidget {
+  const _RankInsignia({required this.level});
+
+  final int level;
+
+  @override
+  Widget build(BuildContext context) => CustomPaint(
+        size: const Size(30, 24),
+        painter: _RankPainter(level),
+      );
+}
+
+class _RankPainter extends CustomPainter {
+  _RankPainter(this.level);
+
+  final int level;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const count = 3;
+    const chevron = 6.0; // her şeridin yüksekliği
+    const gap = 3.0;
+    final w = size.width;
+
+    for (var i = 0; i < count; i++) {
+      final filled = i < level;
+      final yBottom = size.height - i * (chevron + gap);
+      final paint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = filled ? 2.8 : 1.8
+        ..strokeJoin = StrokeJoin.round
+        ..strokeCap = StrokeCap.round
+        ..color = filled
+            ? AppPalette.amber
+            : AppPalette.line.withValues(alpha: 0.25);
+      final path = Path()
+        ..moveTo(w * 0.14, yBottom)
+        ..lineTo(w * 0.5, yBottom - chevron)
+        ..lineTo(w * 0.86, yBottom);
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _RankPainter old) => old.level != level;
 }
 
 /// Menü açılışında başlık + butonları bir kez yumuşakça belirtir (opaklık +

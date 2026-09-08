@@ -577,8 +577,10 @@ class BoardComponent extends PositionComponent with TapCallbacks {
         ),
     );
 
-    // Yasal hamle vurguları.
-    if (controller.mode == InteractionMode.move && !state.isOver) {
+    // Yasal hamle vurguları — yalnızca sıra insan oyuncudayken (AI düşünürken
+    // tahta ipucu göstermez).
+    final humanActs = !controller.vsAi || controller.acceptsInput;
+    if (controller.mode == InteractionMode.move && !state.isOver && humanActs) {
       final fill = Paint()..color = const Color(0x4048C774);
       final ring = Paint()
         ..style = PaintingStyle.stroke
@@ -592,8 +594,9 @@ class BoardComponent extends PositionComponent with TapCallbacks {
     }
 
     // Aktif askerin zemin nişanı (düzlemde — eğimle elips olur). Asker
-    // kayarken (ör. geri al) nişan onunla birlikte gelir.
-    if (!state.isOver) {
+    // kayarken (ör. geri al) nişan onunla birlikte gelir. AI düşünürken
+    // gösterilmez (nişangah insanın sırasıymış gibi durur).
+    if (!state.isOver && humanActs) {
       final ac = _pawnFlatCenter(state.turn, m);
       final rr = cell * 0.40;
       final reticle = Paint()
