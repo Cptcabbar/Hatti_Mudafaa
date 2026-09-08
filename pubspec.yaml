@@ -106,8 +106,10 @@ flutter:
   uses-material-design: true
 
   assets:
-    # Müzik / ses — assets/audio/theme.mp3 (bkz. assets/audio/README.md)
+    # Müzik + efekt sesleri (bkz. assets/audio/README.md). Flutter varlık
+    # dizinleri özyinelemeli değil — alt klasör ayrıca listelenir.
     - assets/audio/
+    - assets/audio/sfx/
     # Marka görselleri — menü logosu assets/brand/logo.png (varsa gösterilir),
     # ayrıca flutter_launcher_icons / flutter_native_splash kaynak PNG'leri
     - assets/brand/

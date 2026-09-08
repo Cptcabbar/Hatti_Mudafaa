@@ -7,6 +7,7 @@ import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:game_core/game_core.dart';
 
+import '../audio/game_sfx.dart';
 import '../settings.dart';
 import 'board_metrics.dart';
 import 'board_projection.dart';
@@ -383,6 +384,7 @@ class BoardComponent extends PositionComponent with TapCallbacks {
       final cur = _barrierT[key];
       if (cur == null) {
         _barrierT[key] = 0;
+        GameSfx.instance.barrier(isWire: b.isWire);
         if (_particlesOn) _spawnBarrierDust(b, m);
       } else if (cur < 1) {
         _barrierT[key] = math.min(1.0, cur + dt / 0.24);
@@ -412,6 +414,8 @@ class BoardComponent extends PositionComponent with TapCallbacks {
       } else {
         _pawnFrom[p] = fromC;
         _pawnT[p] = 0;
+        // Karda yürüme sesi Geniş Arazi'de (snow), aksi halde toprak adımı.
+        GameSfx.instance.step(snow: snow);
       }
     }
     final t = _pawnT[p]!;

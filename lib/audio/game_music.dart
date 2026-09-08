@@ -16,7 +16,8 @@ class GameMusic {
   static final GameMusic instance = GameMusic._();
 
   /// `assets/` öneki olmadan — audioplayers `AssetSource` bunu ekler.
-  static const String _asset = 'audio/theme.mp3';
+  /// Parçayı değiştirmek: dosyayı `assets/audio/`'ya koy, bu adı güncelle.
+  static const String _asset = 'audio/Before_the_Iron_Gates.mp3';
 
   AudioPlayer? _player;
   bool _initDone = false;

@@ -1,29 +1,43 @@
 # Ses varlıkları
 
-Oyunun sesleri buraya konur. `pubspec.yaml` bu klasörü bir varlık dizini
-olarak tanır; kod dosyalara **`assets/`** öneki olmadan erişir
-(`AssetSource('audio/<dosya>')`).
+`pubspec.yaml` `assets/audio/` ve `assets/audio/sfx/` dizinlerini tanır. Kod
+dosyalara **`assets/`** öneki olmadan erişir (`AssetSource('audio/...')`).
 
 ## Arka plan müziği
 
-Ana müzik parçasını şu adla buraya koy:
+`assets/audio/Before_the_Iron_Gates.mp3` — döngüde, ses %50, menü + oyun
+boyunca. "Ayarlar → Müzik" duraklatır/sürdürür.
+
+Parçayı değiştirmek: yeni mp3'ü buraya koy, `lib/audio/game_music.dart`
+içindeki `_asset` sabitini güncelle.
+
+- **Web:** tarayıcı ilk kullanıcı dokunuşundan önce ses çalmaz; menüde bir
+  düğmeye basınca başlar (`GameMusic.nudge`).
+
+## Efekt sesleri — `assets/audio/sfx/`
+
+Tümü **sentetik** (kayıt yok), `tool/gen_sfx.mjs` ile üretilir:
 
 ```
-assets/audio/theme.mp3
+node tool/gen_sfx.mjs
 ```
 
-- Biçim: **mp3** (web + Android + iOS'ta en sorunsuz). `.ogg` / `.wav` da
-  çalışır ama o zaman `lib/audio/game_music.dart` içindeki dosya adını
-  güncelle.
-- Döngüde çalar; sesi kod içinde 0.5'e ayarlı. Ana menü / oyun boyunca sürer.
-- "Ayarlar → Müzik" anahtarı bu parçayı duraklatır / sürdürür.
-- **Web'de tarayıcı politikası:** ses ilk kullanıcı dokunuşundan önce başlamaz;
-  menüde bir düğmeye basınca devreye girer (kod bunu hallediyor).
-- **⚖️ Lisans:** yalnızca ticari + uygulamaya gömme izinli müzik (royalty-free /
-  satın alınmış / kendi bestən). Lisans kaydını `docs/legal-clearance.md`'ye
-  ekle (ROADMAP Faz 5).
+| Dosya | Ne zaman | Notlar |
+|---|---|---|
+| `step_dirt.wav` | piyon 1 kare ilerledi (7×7 / normal) | ~190 ms, alçak tok adım |
+| `step_snow.wav` | piyon ilerledi (**Geniş Arazi** — karlı) | ~260 ms, çıtırtı + gıcırtı |
+| `mine.wav` | mayın yerleştirildi | ~340 ms, toprağa bas + metal tık |
+| `wire.wav` | dikenli tel çekildi | ~500 ms, gerilim twang + hışırtı |
 
-## Efekt sesleri (sonra)
+"Ayarlar → Ses" anahtarına bağlı. Bağlantı: `lib/audio/game_sfx.dart`;
+tetiklendiği yer `lib/game/board_component.dart` `_advanceAnimations`
+(hamle/engel durumu bir önceki kareyle karşılaştırılır).
 
-`assets/audio/sfx/` altına eklenecek; "Ayarlar → Ses" anahtarına bağlanacak.
-Henüz bağlanmadı.
+Sesi/karakteri beğenmezsen `tool/gen_sfx.mjs` içindeki parametreleri
+(zarf `tau`, frekanslar, tane sayısı) değiştir, scripti tekrar çalıştır.
+
+## ⚖️ Lisans
+
+Müzik + üretilen SFX: yalnızca ticari + uygulamaya gömme izinli. SFX'ler
+%100 özgün sentez (örnek/kütüphane sesi yok). Lisans kaydı ROADMAP Faz 5'te
+`docs/legal-clearance.md`'ye eklenecek.

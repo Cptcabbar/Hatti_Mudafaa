@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'audio/game_music.dart';
+import 'audio/game_sfx.dart';
 import 'settings.dart';
 import 'ui/app_theme.dart';
 import 'ui/home_screen.dart';
@@ -53,9 +54,10 @@ class _BootstrapState extends State<_Bootstrap> {
       ]),
     );
     await AppSettings.instance.load();
-    // Arka plan müziği — dosya yoksa / web autoplay kilidi varsa sessiz geçer;
-    // UI'ı bekletmemesi için await edilmez.
+    // Ses — dosya yoksa / web autoplay kilidi varsa sessiz geçer; UI'ı
+    // bekletmemesi için await edilmez.
     unawaited(GameMusic.instance.init());
+    unawaited(GameSfx.instance.init());
     // İleride: await _loadFontsAndAtlas(); ...
   }
 

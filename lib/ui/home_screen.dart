@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:game_ai/game_ai.dart';
 import 'package:game_core/game_core.dart';
 
@@ -493,19 +494,58 @@ class _TitleBlock extends StatelessWidget {
       children: [
         // Oyun logosu — assets/brand/logo.png konunca burada görünür; dosya
         // yoksa hiçbir şey çizilmez (menü şu anki haliyle kalır).
-        Image.asset(
-          'assets/brand/logo.png',
-          height: 132,
-          fit: BoxFit.contain,
-          filterQuality: FilterQuality.medium,
-          errorBuilder: (_, _, _) => const SizedBox.shrink(),
-        ),
-        const SizedBox(height: 14),
+        const _MenuLogo(),
         const Text('HATTI', style: style, textAlign: TextAlign.center),
         const Text('MÜDAFAA', style: style, textAlign: TextAlign.center),
         const SizedBox(height: 22),
         const SizedBox(width: 210, height: 22, child: _StandoffMark()),
       ],
+    );
+  }
+}
+
+/// Oyun logosu — `assets/brand/logo.png` varsa başlığın üstünde gösterir.
+/// Varlık yoksa yer kaplamaz (bir kez kontrol edilir, sonuç önbelleğe alınır —
+/// eksik dosya için tekrarlı 404 uyarısı olmaz).
+class _MenuLogo extends StatefulWidget {
+  const _MenuLogo();
+
+  @override
+  State<_MenuLogo> createState() => _MenuLogoState();
+}
+
+class _MenuLogoState extends State<_MenuLogo> {
+  static bool? _exists;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_exists == null) _check();
+  }
+
+  Future<void> _check() async {
+    bool found;
+    try {
+      await rootBundle.load('assets/brand/logo.png');
+      found = true;
+    } catch (_) {
+      found = false;
+    }
+    _exists = found;
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_exists != true) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Image.asset(
+        'assets/brand/logo.png',
+        height: 132,
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.medium,
+      ),
     );
   }
 }
@@ -636,7 +676,7 @@ class _SettingsSheet extends StatelessWidget {
             _SettingRow(
               icon: Icons.graphic_eq,
               label: 'Ses',
-              subtitle: 'Efekt sesleri · yakında',
+              subtitle: 'Adım, mayın ve tel efekt sesleri',
               notifier: AppSettings.instance.sound,
             ),
             _SettingRow(
