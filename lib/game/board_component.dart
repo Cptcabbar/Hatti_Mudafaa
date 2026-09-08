@@ -15,7 +15,7 @@ import 'game_controller.dart';
 /// Yerel oyunun Flame sahnesi. Şimdilik her kare durumdan yeniden çizilir;
 /// Faz 2'de piyon/engel ayrı animasyonlu bileşenlere ayrılacak.
 class HattiBoardGame extends FlameGame {
-  HattiBoardGame(this.controller, {this.hotSeat = true});
+  HattiBoardGame(this.controller, {this.hotSeat = true, this.snow = false});
 
   final GameController controller;
 
@@ -23,25 +23,32 @@ class HattiBoardGame extends FlameGame {
   /// `false` (yapay zeka / tek taraf): tahta sabit — yerel oyuncuya (P1) bakar.
   final bool hotSeat;
 
+  /// Karlı savaş alanı teması (Geniş Arazi) — zemin/çevre/partikül kar varyantı.
+  final bool snow;
+
   late final BoardComponent board;
 
   @override
-  Color backgroundColor() => const Color(0xFF0A0806);
+  Color backgroundColor() =>
+      snow ? const Color(0xFF0A0C10) : const Color(0xFF0A0806);
 
   @override
   Future<void> onLoad() async {
-    board = BoardComponent(controller, hotSeat: hotSeat);
+    board = BoardComponent(controller, hotSeat: hotSeat, snow: snow);
     add(board);
   }
 }
 
 class BoardComponent extends PositionComponent with TapCallbacks {
-  BoardComponent(this.controller, {this.hotSeat = true});
+  BoardComponent(this.controller, {this.hotSeat = true, this.snow = false});
 
   final GameController controller;
 
   /// bkz. [HattiBoardGame.hotSeat]
   final bool hotSeat;
+
+  /// bkz. [HattiBoardGame.snow] — kar varyantı (Adım 4-5'te zemin/çevre dallanır).
+  final bool snow;
 
   BoardMetrics? _metrics;
   BoardProjection? _projection;
@@ -642,6 +649,14 @@ class BoardComponent extends PositionComponent with TapCallbacks {
       items.add((
         depth: depthOf(mid),
         draw: () => _drawBarrierGrowing(canvas, m, proj, b, grow),
+      ));
+    }
+    // Ağaçlar (kare-kapatan engeller, §2.1) — kendi derinliklerinde billboard.
+    for (final sq in state.obstacles) {
+      final tc = m.cellCenter(sq);
+      items.add((
+        depth: depthOf(tc),
+        draw: () => _drawTree(canvas, m, proj, tc),
       ));
     }
     // Geçici toz bulutları (adım / engel koyma) — kendi derinliğinde.
@@ -2017,6 +2032,95 @@ class BoardComponent extends PositionComponent with TapCallbacks {
   static Offset _quadPoint(Offset p0, Offset c, Offset p1, double t) {
     final mt = 1 - t;
     return p0 * (mt * mt) + c * (2 * mt * t) + p1 * (t * t);
+  }
+
+  /// Kare-kapatan engel (§2.1) — billboard iğne yapraklı ağaç: koyu gövde + 3
+  /// üçgen kat. "Yukarı" yönü eğimle işaret değiştirir (`_liftY`, asker gibi).
+  /// [snow] iken katlar karlı ve tabanda donmuş toprak halkası.
+  void _drawTree(Canvas canvas, BoardMetrics m, BoardProjection proj, Offset g) {
+    final sc = proj.scaleAt(g);
+    final vRatio = (proj.verticalScaleAt(g) / sc).clamp(0.25, 1.0);
+    final gs = _p(g);
+    final r = m.cell * 0.38 * sc; // taban yarıçapı
+    final h = m.cell * 1.28 * sc; // toplam yükseklik (ekran-y büyüklüğü)
+
+    // 1) Zemin gölgesi + tabanda küçük kar/toprak birikintisi.
+    canvas
+      ..save()
+      ..translate(gs.dx, gs.dy)
+      ..scale(1.0, vRatio * 0.5);
+    _glowBlob(canvas, Offset.zero, r * 1.6, const Color(0x59000000));
+    canvas.restore();
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: gs,
+        width: r * 1.2,
+        height: r * 0.42 * vRatio + r * 0.12,
+      ),
+      Paint()
+        ..color = snow ? const Color(0xE6E7EDF3) : const Color(0xFF35291C),
+    );
+
+    Offset up(double frac) => gs + Offset(0, _liftY(h * frac));
+
+    // 2) Gövde.
+    canvas.drawLine(
+      gs,
+      up(0.32),
+      Paint()
+        ..strokeCap = StrokeCap.round
+        ..strokeWidth = r * 0.36
+        ..color = const Color(0xFF3A2A1C),
+    );
+
+    // 3) Üç iğne-yapraklı kat (alttan üste küçülür).
+    const tiers = <({double base, double top, double wide})>[
+      (base: 0.18, top: 0.60, wide: 1.00),
+      (base: 0.42, top: 0.80, wide: 0.72),
+      (base: 0.64, top: 1.00, wide: 0.46),
+    ];
+    final needle = Paint()
+      ..color = snow ? const Color(0xFF2E4638) : const Color(0xFF2B3822);
+    final needleLit = Paint()
+      ..color = snow ? const Color(0xFF3D5B47) : const Color(0xFF3A4C2F);
+    final snowCap = Paint()..color = const Color(0xF2EAF0F5);
+    for (final t in tiers) {
+      final bY = up(t.base);
+      final tY = up(t.top);
+      final halfW = r * t.wide;
+      canvas
+        ..drawPath(
+          Path()
+            ..moveTo(bY.dx - halfW, bY.dy)
+            ..lineTo(tY.dx, tY.dy)
+            ..lineTo(bY.dx + halfW, bY.dy)
+            ..close(),
+          needle,
+        )
+        // sol yüz ışığı
+        ..drawPath(
+          Path()
+            ..moveTo(bY.dx - halfW, bY.dy)
+            ..lineTo(tY.dx, tY.dy)
+            ..lineTo(bY.dx - halfW * 0.12, bY.dy)
+            ..close(),
+          needleLit,
+        );
+      if (snow) {
+        final capB = Offset.lerp(bY, tY, 0.5)!;
+        canvas.drawPath(
+          Path()
+            ..moveTo(capB.dx - halfW * 0.5, capB.dy)
+            ..lineTo(tY.dx, tY.dy)
+            ..lineTo(capB.dx + halfW * 0.5, capB.dy)
+            ..quadraticBezierTo(
+                tY.dx, Offset.lerp(bY, tY, 0.34)!.dy,
+                capB.dx - halfW * 0.5, capB.dy)
+            ..close(),
+          snowCap,
+        );
+      }
+    }
   }
 
   /// "Miğferli mevzi" askeri: kazılı toprak taban + siper (brim) + miğfer

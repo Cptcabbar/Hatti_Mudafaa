@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:game_ai/game_ai.dart';
+import 'package:game_core/game_core.dart';
 
 import '../settings.dart';
 import 'app_theme.dart';
@@ -42,31 +43,36 @@ class HomeScreen extends StatelessWidget {
             builder: (context, on, _) =>
                 on ? const AshFall() : const SizedBox.shrink(),
           ),
+          // Menü içeriği artık uzun (Geniş Arazi bölümüyle) — küçük ekranlarda
+          // taşmasın diye kaydırılabilir; sığdığında dikeyde ortalanır.
           SafeArea(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 420),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: Column(
-                    children: [
-                      const Spacer(flex: 3),
-                      const _MenuEntrance(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _TitleBlock(),
-                            SizedBox(height: 44),
-                            _PlayButton(),
-                            SizedBox(height: 14),
-                            _TimedToggle(),
-                            SizedBox(height: 30),
-                            _AiSection(),
-                          ],
+            child: LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 420),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 32, vertical: 28),
+                        child: _MenuEntrance(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _TitleBlock(),
+                              SizedBox(height: 40),
+                              _PlayButton(),
+                              SizedBox(height: 14),
+                              _TimedToggle(),
+                              SizedBox(height: 28),
+                              _AiSection(),
+                              SizedBox(height: 24),
+                              _WideTerrainSection(),
+                            ],
+                          ),
                         ),
                       ),
-                      const Spacer(flex: 4),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -186,6 +192,115 @@ class _AiSection extends StatelessWidget {
   }
 }
 
+/// "GENİŞ ARAZİ" bölümü — 9×9 karlı savaş alanı, oyuncu başına 11 kredi,
+/// oyun başında 2–4 geçilmez ağaç. Kendi iki-kişilik düğmesi + Kolay/Orta/Zor.
+class _WideTerrainSection extends StatelessWidget {
+  const _WideTerrainSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _SectionRule(label: 'GENİŞ ARAZİ'),
+        SizedBox(height: 6),
+        Text(
+          '9×9 · 11 kredi · karlı arazi · ağaçlar',
+          style: TextStyle(
+            fontSize: 10.5,
+            letterSpacing: 0.4,
+            color: AppPalette.text,
+          ),
+        ),
+        SizedBox(height: 12),
+        _WideTwoPlayerButton(),
+        SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _AiButton(
+                difficulty: AiDifficulty.easy,
+                label: 'Kolay',
+                level: 1,
+                config: GameConfig.wideTerrain,
+                snow: true,
+              ),
+            ),
+            SizedBox(width: 8),
+            Expanded(
+              child: _AiButton(
+                difficulty: AiDifficulty.medium,
+                label: 'Orta',
+                level: 2,
+                config: GameConfig.wideTerrain,
+                snow: true,
+              ),
+            ),
+            SizedBox(width: 8),
+            Expanded(
+              child: _AiButton(
+                difficulty: AiDifficulty.hard,
+                label: 'Zor',
+                level: 3,
+                config: GameConfig.wideTerrain,
+                snow: true,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Geniş Arazi'de iki kişilik (hot-seat) oyun — köşeli koyu levha, tam genişlik.
+class _WideTwoPlayerButton extends StatelessWidget {
+  const _WideTwoPlayerButton();
+
+  void _start(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => GameScreen(
+          config: GameConfig.wideTerrain,
+          snow: true,
+          timed: AppSettings.instance.timed.value,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppPalette.surfaceHi,
+      child: InkWell(
+        onTap: () => _start(context),
+        child: Container(
+          width: double.infinity,
+          decoration: BoxDecoration(border: Border.all(color: AppPalette.line)),
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.groups_outlined, size: 18, color: AppPalette.text),
+              SizedBox(width: 8),
+              Text(
+                'İKİ KİŞİLİK',
+                style: TextStyle(
+                  color: AppPalette.text,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 2,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Ortada başlık, iki yanında ince çizgi.
 class _SectionRule extends StatelessWidget {
   const _SectionRule({required this.label});
@@ -216,11 +331,15 @@ class _SectionRule extends StatelessWidget {
 }
 
 /// Tek zorluk düğmesi — köşeli koyu levha; üstte seviye rütbesi, altta ad.
+/// [config]/[snow] ile hem normal (7×7) hem Geniş Arazi (9×9 karlı) bölümünde
+/// kullanılır.
 class _AiButton extends StatelessWidget {
   const _AiButton({
     required this.difficulty,
     required this.label,
     required this.level,
+    this.config = GameConfig.v1,
+    this.snow = false,
   });
 
   final AiDifficulty difficulty;
@@ -229,6 +348,10 @@ class _AiButton extends StatelessWidget {
   /// 1 (Kolay) · 2 (Orta) · 3 (Zor) — rütbe şeridi sayısı.
   final int level;
 
+  /// Arazi tipi + karlı tema (Geniş Arazi bölümünden `wideTerrain` / `true`).
+  final GameConfig config;
+  final bool snow;
+
   void _start(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -236,6 +359,8 @@ class _AiButton extends StatelessWidget {
           hotSeat: false,
           timed: false,
           aiDifficulty: difficulty,
+          config: config,
+          snow: snow,
         ),
       ),
     );

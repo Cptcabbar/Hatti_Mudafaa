@@ -20,6 +20,8 @@ class GameScreen extends StatefulWidget {
     this.timed = true,
     this.hotSeat = true,
     this.aiDifficulty,
+    this.config = GameConfig.v1,
+    this.snow = false,
   });
 
   final bool timed;
@@ -30,6 +32,13 @@ class GameScreen extends StatefulWidget {
 
   /// Doluysa oyun yapay zekaya karşı (Kırmızı'yı AI oynar); süre yoktur.
   final AiDifficulty? aiDifficulty;
+
+  /// Arazi tipi — `GameConfig.v1` (7×7) veya `GameConfig.wideTerrain` (9×9 +
+  /// ağaçlar). Tahta boyutu / cephanelik / engel karesi hep buradan.
+  final GameConfig config;
+
+  /// Karlı savaş alanı teması (Geniş Arazi). Tahta çiziminin kar varyantını açar.
+  final bool snow;
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -45,10 +54,15 @@ class _GameScreenState extends State<GameScreen> {
   void initState() {
     super.initState();
     controller = GameController(
+      config: widget.config,
       timed: widget.timed,
       aiDifficulty: widget.aiDifficulty,
     );
-    game = HattiBoardGame(controller, hotSeat: widget.hotSeat);
+    game = HattiBoardGame(
+      controller,
+      hotSeat: widget.hotSeat,
+      snow: widget.snow,
+    );
     controller.addListener(_onControllerChange);
     // Flame sahnesi yüklenene + shader ısınması (ilk kareler eğimi tüm aralıkta
     // gezdirir) bitene kadar ortak yükleme görünümü tam ekran örtsün — böylece

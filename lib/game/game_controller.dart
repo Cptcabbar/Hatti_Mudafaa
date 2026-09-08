@@ -23,16 +23,31 @@ class GameController extends ChangeNotifier {
     this.aiDifficulty,
     this.aiPlayer = Player.p2,
     int? aiSeed,
+    int? obstacleSeed,
   })  : _config = config,
+        _obstacleRng = Random(obstacleSeed),
         _state = BoardState.initial(config),
         _engine = aiDifficulty == null
             ? null
             : NegamaxEngine(aiDifficulty, seed: aiSeed) {
+    _state = _freshState();
     _startTurnTimer();
     _maybeStartAiTurn();
   }
 
   final GameConfig _config;
+
+  /// Engel karesi (§2.1) düzeni bu RNG'den üretilir — her yeni oyunda (ilk
+  /// kuruluş + `restart`) yeni düzen. Testlerde `obstacleSeed` ile sabitlenir.
+  final Random _obstacleRng;
+
+  /// Config engel karesi istiyorsa taze bir düzenle başlangıç durumu üretir.
+  BoardState _freshState() => BoardState.initial(
+        _config,
+        _config.obstacleCountMax > 0
+            ? ObstacleField.roll(_config, _obstacleRng)
+            : const {},
+      );
 
   /// Süreli mod açık mı (her tur [turnDuration]).
   final bool timed;
@@ -197,7 +212,7 @@ class GameController extends ChangeNotifier {
   void restart() {
     _gen++;
     _history.clear();
-    _state = BoardState.initial(_config);
+    _state = _freshState(); // Geniş Arazi: ağaçlar yeni konumlara taşınır
     _resetInteraction();
   }
 

@@ -87,6 +87,43 @@ void main() {
     expect(c.canUndo, isFalse);
   });
 
+  group('Geniş Arazi (wideTerrain)', () {
+    test('başlangıç: 9×9, 11 kredi, 2–4 ağaç (izinli satırlarda)', () {
+      final c = GameController(
+        config: GameConfig.wideTerrain,
+        timed: false,
+        obstacleSeed: 1,
+      );
+      expect(c.state.config.boardSize, 9);
+      expect(c.state.armoryP1, 11);
+      expect(c.state.armoryP2, 11);
+      expect(c.state.obstacles.length, inInclusiveRange(2, 4));
+      for (final sq in c.state.obstacles) {
+        expect(sq.row, inInclusiveRange(2, 6));
+      }
+    });
+
+    test('restart ağaçları yeni konumlara taşır', () {
+      final c = GameController(
+        config: GameConfig.wideTerrain,
+        timed: false,
+        obstacleSeed: 7,
+      );
+      final layouts = <String>{};
+      for (var i = 0; i < 8; i++) {
+        layouts.add((c.state.obstacles.map((s) => s.toString()).toList()..sort())
+            .join(','));
+        c.restart();
+      }
+      expect(layouts.length, greaterThan(1));
+    });
+
+    test('v1 arazisinde ağaç yok', () {
+      final c = make();
+      expect(c.state.obstacles, isEmpty);
+    });
+  });
+
   group('süreli mod', () {
     test('süre dolunca sıradaki asker hedefe doğru otomatik ilerler', () async {
       final c = GameController(
