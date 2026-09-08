@@ -112,6 +112,14 @@ class _Rules extends StatelessWidget {
           '"Süreli mod" açıkken her tur 30 saniye. Süre biterse askerin '
               'hedefe doğru kendiliğinden bir adım atar.',
         ),
+        _Section(
+          'GENİŞ ARAZİ',
+          'Menüdeki "Geniş Arazi" bölümü farklı bir sahne açar: 9×9 karlı '
+              'savaş alanı, oyuncu başına 11 kredi ve oyun başında sahaya '
+              'serpiştirilmiş 2–4 ağaç. Ağaç karesine girilemez, üstünden '
+              'atlanamaz — etrafından dolaşırsın. Her yeni oyunda ağaçlar '
+              'başka yerlere düşer.',
+        ),
       ],
     );
   }

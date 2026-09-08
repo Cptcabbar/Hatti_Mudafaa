@@ -40,6 +40,7 @@ void main() {
     expect(find.text('NASIL OYNANIR'), findsOneWidget);
     expect(find.text('AMAÇ'), findsOneWidget);
     expect(find.text('ENGELLER'), findsOneWidget);
+    expect(find.text('GENİŞ ARAZİ'), findsOneWidget);
   });
 
   Future<void> drainScene(WidgetTester tester) async {
