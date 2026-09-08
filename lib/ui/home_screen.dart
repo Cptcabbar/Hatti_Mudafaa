@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:game_ai/game_ai.dart';
 import 'package:game_core/game_core.dart';
 
+import '../audio/game_music.dart';
 import '../settings.dart';
 import 'app_theme.dart';
 import 'ash_fall.dart';
@@ -15,6 +16,7 @@ class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   void _openSettings(BuildContext context) {
+    GameMusic.instance.nudge();
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: ThemeBackdrop.base,
@@ -24,6 +26,7 @@ class HomeScreen extends StatelessWidget {
   }
 
   void _openHowToPlay(BuildContext context) {
+    GameMusic.instance.nudge();
     Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (context) => const HowToPlayScreen()),
     );
@@ -111,6 +114,7 @@ class _PlayButton extends StatelessWidget {
   const _PlayButton();
 
   void _startLocalGame(BuildContext context) {
+    GameMusic.instance.nudge();
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (context) =>
@@ -258,6 +262,7 @@ class _WideTwoPlayerButton extends StatelessWidget {
   const _WideTwoPlayerButton();
 
   void _start(BuildContext context) {
+    GameMusic.instance.nudge();
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (context) => GameScreen(
@@ -353,6 +358,7 @@ class _AiButton extends StatelessWidget {
   final bool snow;
 
   void _start(BuildContext context) {
+    GameMusic.instance.nudge();
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (context) => GameScreen(
@@ -485,6 +491,16 @@ class _TitleBlock extends StatelessWidget {
     );
     return Column(
       children: [
+        // Oyun logosu — assets/brand/logo.png konunca burada görünür; dosya
+        // yoksa hiçbir şey çizilmez (menü şu anki haliyle kalır).
+        Image.asset(
+          'assets/brand/logo.png',
+          height: 132,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.medium,
+          errorBuilder: (_, _, _) => const SizedBox.shrink(),
+        ),
+        const SizedBox(height: 14),
         const Text('HATTI', style: style, textAlign: TextAlign.center),
         const Text('MÜDAFAA', style: style, textAlign: TextAlign.center),
         const SizedBox(height: 22),
@@ -626,7 +642,7 @@ class _SettingsSheet extends StatelessWidget {
             _SettingRow(
               icon: Icons.music_note_outlined,
               label: 'Müzik',
-              subtitle: 'Arka plan müziği · yakında',
+              subtitle: 'Arka plan müziği',
               notifier: AppSettings.instance.music,
             ),
             _SettingRow(

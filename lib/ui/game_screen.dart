@@ -214,11 +214,13 @@ class _GameScreenState extends State<GameScreen> {
             ),
           ),
           if (widget.timed)
+            // İnce kenar göstergesi — ekranın en sağına yaslı, biraz dışına
+            // taşar; oyun tahtasının görünürlüğünü kapatmaz.
             Positioned(
-              right: 4,
-              top: 8,
-              bottom: 8,
-              width: 30,
+              right: -4,
+              top: 18,
+              bottom: 18,
+              width: 20,
               child: AnimatedBuilder(
                 animation: controller,
                 builder: (context, _) => _TurnTimer(controller: controller),
@@ -735,12 +737,12 @@ class _FieldButton extends StatelessWidget {
   }
 }
 
-/// Sağ kenarda dikey tur sayacı.
+/// Ekranın en sağ kenarına yaslı ince dikey süre göstergesi.
 ///
-/// Dolu çubuk **sıradaki oyuncuya göre** azalır: P1 (düz) turunda ekranın
-/// altına doğru, P2 (180° dönük) turunda ekranın üstüne doğru — böylece her
-/// oyuncu için "aşağı akıyor" gibi görünür. Saniye sayısı iki uçta yazılır;
-/// aktif oyuncuya bakan uç vurgulu.
+/// Dolu çubuk **sıradaki oyuncuya göre** azalır: P1 turunda aşağı, P2 turunda
+/// yukarı — her oyuncu için "aşağı akıyor" gibi görünür. Aciliyet renkle
+/// verilir (yeşil → amber → kırmızı). Sayı yok: tahtayı kapatmasın diye ince
+/// tutuldu; kalan zamanın oranı çubuğun yüksekliğidir.
 class _TurnTimer extends StatelessWidget {
   const _TurnTimer({required this.controller});
 
@@ -749,7 +751,6 @@ class _TurnTimer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fraction = controller.turnFraction;
-    final seconds = controller.secondsLeft.ceil().clamp(0, 999);
     final activeIsP2 = controller.turn == Player.p2 && !controller.isOver;
 
     final Color barColor;
@@ -761,49 +762,18 @@ class _TurnTimer extends StatelessWidget {
       barColor = const Color(0xFFE5484D);
     }
 
-    Widget label({required int quarterTurns, required bool active}) => RotatedBox(
-          quarterTurns: quarterTurns,
-          child: Text(
-            '$seconds',
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: active ? 14 : 12,
-              color: Colors.white.withValues(alpha: active ? 1 : 0.4),
-            ),
-          ),
-        );
-
     return ClipRRect(
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: const BorderRadius.only(
+        topLeft: Radius.circular(8),
+        bottomLeft: Radius.circular(8),
+      ),
       child: Container(
-        color: const Color(0xFF14110D).withValues(alpha: 0.85),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Align(
-              // P2 turunda çubuk yukarıdan (P2'nin "aşağısı") azalır.
-              alignment:
-                  activeIsP2 ? Alignment.topCenter : Alignment.bottomCenter,
-              child: FractionallySizedBox(
-                heightFactor: controller.isOver ? 0 : fraction,
-                widthFactor: 1,
-                child: ColoredBox(color: barColor.withValues(alpha: 0.85)),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // üstteki uç P2'ye bakar (ters)
-                  label(quarterTurns: 2, active: activeIsP2),
-                  // alttaki uç P1'e bakar (düz)
-                  label(quarterTurns: 0, active: !activeIsP2),
-                ],
-              ),
-            ),
-          ],
+        color: const Color(0xFF14110D).withValues(alpha: 0.72),
+        alignment: activeIsP2 ? Alignment.topCenter : Alignment.bottomCenter,
+        child: FractionallySizedBox(
+          heightFactor: controller.isOver ? 0 : fraction,
+          widthFactor: 1,
+          child: ColoredBox(color: barColor.withValues(alpha: 0.9)),
         ),
       ),
     );

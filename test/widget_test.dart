@@ -64,7 +64,10 @@ void main() {
     expect(find.text('Zor'), findsNWidgets(2));
 
     // Üstteki "Zor" → normal 7×7 yapay zeka oyunu (süresiz, sabit tahta).
-    await tester.tap(find.text('Zor').first);
+    final aiZor = find.text('Zor').first;
+    await tester.ensureVisible(aiZor);
+    await tester.pump();
+    await tester.tap(aiZor);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 600));
 
