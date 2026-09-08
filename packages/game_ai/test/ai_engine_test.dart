@@ -115,6 +115,36 @@ void main() {
     });
   });
 
+  group('NegamaxEngine — Geniş Arazi (9×9 + ağaçlar)', () {
+    BoardState wideStart(int seed) => BoardState.initial(
+          GameConfig.wideTerrain,
+          ObstacleField.roll(GameConfig.wideTerrain, Random(seed)),
+        );
+
+    for (final diff in AiDifficulty.values) {
+      test('$diff: 9×9 + ağaçlarda yasal hamle + bütçe içinde (8 açılış)',
+          () async {
+        final engine = NegamaxEngine(diff, seed: 5);
+        var maxMs = 0;
+        for (var seed = 0; seed < 8; seed++) {
+          final s = _randomAdvance(wideStart(seed), Random(seed + 30), 10);
+          if (s.isOver) continue;
+          final sw = Stopwatch()..start();
+          final move = await engine.chooseMove(
+            s,
+            budget: const Duration(milliseconds: 500),
+          );
+          sw.stop();
+          maxMs = maxMs < sw.elapsedMilliseconds ? sw.elapsedMilliseconds : maxMs;
+          expect(Rules.isLegal(s, move), isTrue, reason: 'konum: $s');
+        }
+        // ignore: avoid_print
+        print('$diff 9×9 en yüksek hamle süresi: ${maxMs}ms');
+        expect(maxMs, lessThan(1500), reason: '$diff çok yavaş');
+      });
+    }
+  });
+
   group('NegamaxEngine — güç sıralaması', () {
     test('zor, kolaya karşı oyunların büyük çoğunluğunu kazanır', () async {
       var hardWins = 0;

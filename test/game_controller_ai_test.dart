@@ -92,6 +92,35 @@ void main() {
     });
   });
 
+  test('Geniş Arazi: yapay zeka 9×9 + ağaçlarla yasal hamle yapar', () {
+    fakeAsync((async) {
+      final m9 = BoardMetrics(boardSize: 9, side: 900);
+      final c = GameController(
+        config: GameConfig.wideTerrain,
+        timed: false,
+        aiDifficulty: AiDifficulty.hard,
+        aiSeed: 2,
+        obstacleSeed: 4,
+      );
+      addTearDown(c.dispose);
+
+      expect(c.state.config.boardSize, 9);
+      expect(c.state.obstacles.length, inInclusiveRange(2, 4));
+
+      c.tapBoard(m9.cellCenter(c.legalStepTargets.first), m9);
+      expect(c.state.ply, 1);
+      expect(c.aiThinking, isTrue);
+
+      async.elapse(const Duration(seconds: 6));
+      async.flushMicrotasks();
+
+      expect(c.aiThinking, isFalse);
+      expect(c.state.ply, 2);
+      // AI hamlesi geçerli ve ağaç karesine girmedi
+      expect(c.state.obstacles.contains(c.state.pawnP2), isFalse);
+    });
+  });
+
   test('iki kişilik oyunda AI hiç devreye girmez', () {
     fakeAsync((async) {
       final c = GameController(timed: false);

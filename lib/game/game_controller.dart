@@ -251,20 +251,24 @@ class GameController extends ChangeNotifier {
   /// AI hamlesini hesaplar, ardından toplam ~3-5 sn dolana kadar bekler ve
   /// oynar. Bu pencere insan rakibin de düşünmesi içindir (`docs/rules.md` §6:
   /// AI modunda tur süresi yoktur). Hesap web'de ana thread'i kısa süre
-  /// (~150 ms) bloklar — isolate'e taşıma ROADMAP Faz 2'de.
+  /// bloklar — isolate'e taşıma ROADMAP Faz 2'de. 9×9 (Geniş Arazi) dallanması
+  /// daha geniş; bütçe biraz kısılır ki blok fark edilir bir takılmaya dönmesin
+  /// (iteratif derinleşme yine tam derinlik-2 + kısmi derinlik-3 verir).
   Future<void> _runAiTurn() async {
     final gen = _gen;
     final snapshot = _state;
     final think = Duration(milliseconds: 3000 + _rng.nextInt(2001)); // 3.0–5.0 sn
     final sw = Stopwatch()..start();
+    final budget = _config.boardSize >= 9
+        ? const Duration(milliseconds: 350)
+        : const Duration(milliseconds: 500);
 
     // Göstergenin bir kare çizilmesine izin ver, sonra hesapla.
     await Future<void>.delayed(const Duration(milliseconds: 300));
 
     Move move;
     try {
-      move = await _engine!
-          .chooseMove(snapshot, budget: const Duration(milliseconds: 500));
+      move = await _engine!.chooseMove(snapshot, budget: budget);
     } catch (_) {
       move = _autoMove(); // güvenlik ağı: hedefe en çok yaklaştıran adım
     }
