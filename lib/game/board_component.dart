@@ -1018,6 +1018,15 @@ class BoardComponent extends PositionComponent with TapCallbacks {
     final c = Canvas(recorder)..scale(scale);
     final rnd = math.Random(20260907);
 
+    // Karlı arazide sırt hatları kar örtülü (soluk); enkaz silüetleri koyu kalır
+    // (beyaz tepelere karşı okunur). Çamurda hepsi near-black.
+    final ridgeFar =
+        snow ? const Color(0x8FBFC8D2) : const Color(0x78100D09);
+    final ridgeMid =
+        snow ? const Color(0xA8A7B1BE) : const Color(0xA00C0A07);
+    final ridgeNear =
+        snow ? const Color(0xC88E99A7) : const Color(0xC80A0806);
+
     // Görüntü koordinatı: y=0 gökyüzü (yukarı), y=h ufuk (tahtanın uzak kenarı).
 
     // 1) Katmanlı sırt hatları (arkadan öne: soluk+bulanık → koyu+net).
@@ -1041,16 +1050,16 @@ class BoardComponent extends PositionComponent with TapCallbacks {
       ..drawPath(
         ridge(0.44, h * 0.14, 6),
         Paint()
-          ..color = const Color(0x78100D09)
+          ..color = ridgeFar
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
       )
       ..drawPath(
         ridge(0.57, h * 0.13, 7),
         Paint()
-          ..color = const Color(0xA00C0A07)
+          ..color = ridgeMid
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.4),
       )
-      ..drawPath(ridge(0.71, h * 0.12, 6), Paint()..color = const Color(0xC80A0806));
+      ..drawPath(ridge(0.71, h * 0.12, 6), Paint()..color = ridgeNear);
 
     // 2) Parçalanmış ağaçlar (orta sırt üstünde — kırık, çıralı zirveler).
     void shatteredTree(double x, double baseY, double th) {
@@ -1249,7 +1258,7 @@ class BoardComponent extends PositionComponent with TapCallbacks {
           height: rw,
         ),
         Paint()
-          ..color = const Color(0x66040302)
+          ..color = snow ? const Color(0x55262E3C) : const Color(0x66040302)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
       );
     }
@@ -1273,14 +1282,20 @@ class BoardComponent extends PositionComponent with TapCallbacks {
     final c = Canvas(recorder)..scale(scale);
     final rnd = math.Random(556677);
 
-    // Görüntü: y=0 ufuk (şeffafa yakın), y=h en yakın (koyu). Çamurlu taban.
+    // Görüntü: y=0 ufuk (şeffafa yakın), y=h en yakın. Çamurlu / karlı taban.
     c.drawRect(
       Rect.fromLTWH(0, 0, w, h),
       Paint()
         ..shader = Gradient.linear(
           const Offset(0, 0),
           Offset(0, h),
-          const [Color(0x00000000), Color(0xE0261B0F), Color(0xF01B1409)],
+          snow
+              ? const [
+                  Color(0x00000000),
+                  Color(0xDEC5CCD5),
+                  Color(0xF0ACB4BF),
+                ]
+              : const [Color(0x00000000), Color(0xE0261B0F), Color(0xF01B1409)],
           const [0.0, 0.13, 1.0],
         ),
     );
@@ -1292,8 +1307,10 @@ class BoardComponent extends PositionComponent with TapCallbacks {
       final cy = h * ny;
       final rad = h * (0.06 + 0.11 * rnd.nextDouble());
       final col = rnd.nextBool()
-          ? Color.fromRGBO(20, 15, 9, 0.16 + rnd.nextDouble() * 0.16)
-          : Color.fromRGBO(120, 104, 78, 0.035 + rnd.nextDouble() * 0.045);
+          ? Color.fromRGBO(snow ? 40 : 20, snow ? 48 : 15, snow ? 62 : 9,
+              0.10 + rnd.nextDouble() * 0.14)
+          : Color.fromRGBO(snow ? 236 : 120, snow ? 241 : 104, snow ? 246 : 78,
+              0.04 + rnd.nextDouble() * 0.05);
       c.drawCircle(
         Offset(cx, cy),
         rad,
@@ -1454,7 +1471,7 @@ class BoardComponent extends PositionComponent with TapCallbacks {
     final up = farAtTop ? -1.0 : 1.0; // "gökyüzü" (uzak taraftan yukarı) yönü
     final envO = ((_tilt.abs() - 0.08) / 0.92).clamp(0.0, 1.0);
 
-    // 1) Ölü kapalı-hava gökyüzü.
+    // 1) Ölü kapalı-hava gökyüzü — çamurda sıcak is, karda soğuk mavi-gri.
     final hy = (farY / vh).clamp(0.08, 0.92);
     canvas.drawRect(
       Offset.zero & Size(vw, vh),
@@ -1462,7 +1479,9 @@ class BoardComponent extends PositionComponent with TapCallbacks {
         ..shader = Gradient.linear(
           const Offset(0, 0),
           Offset(0, vh),
-          const [Color(0xFF181109), Color(0xFF3B3221), Color(0xFF1B140A)],
+          snow
+              ? const [Color(0xFF20262E), Color(0xFF44505D), Color(0xFF232A32)]
+              : const [Color(0xFF181109), Color(0xFF3B3221), Color(0xFF1B140A)],
           [0.0, hy, 1.0],
         ),
     );
@@ -1501,7 +1520,9 @@ class BoardComponent extends PositionComponent with TapCallbacks {
           Offset(0, farY + band),
           [
             const Color(0x00000000),
-            Color.fromRGBO(112, 90, 52, 0.34 + 0.14 * flare * envO),
+            snow
+                ? Color.fromRGBO(150, 166, 186, 0.24 + 0.10 * flare * envO)
+                : Color.fromRGBO(112, 90, 52, 0.34 + 0.14 * flare * envO),
             const Color(0x00000000),
           ],
           const [0.0, 0.5, 1.0],
@@ -1532,22 +1553,21 @@ class BoardComponent extends PositionComponent with TapCallbacks {
       canvas.restore();
     }
 
-    // 3b) Yanan enkaz — tahtanın DIŞINDA kalan zeminde: iki yakın şerit ateşi
-    //     (tahtanın yakın kenarının hemen ötesinde) + iki yan ateş (uzak
-    //     köşelerde). Tahta bunların üstüne çizildiği için sahayı örtmezler.
+    // 3b) Yanan enkaz — tahtanın DIŞINDA kalan zeminde. Karda daha az + daha
+    //     sönük (kar içinde için için yanan enkaz — kontrast, ama baskın değil).
     if (_particlesOn && envO > 0.02) {
       final toNear = farAtTop ? 1.0 : -1.0;
-      // Ateşler tahtanın DIŞINDA, yan/köşe bölgelerinde — tahta üste
-      // çizildiğinden sahayı örtmezler. Geniş ekranda yan boşlukları,
-      // dar ekranda uzak köşe kamalarını doldururlar.
+      final fO = snow ? envO * 0.45 : envO;
       _drawFire(canvas, vw * 0.05, farY + toNear * vh * 0.11, vh * 0.06, 0.05,
-          envO, up);
-      _drawFire(canvas, vw * 0.95, farY + toNear * vh * 0.09, vh * 0.052, 0.95,
-          envO, up);
-      _drawFire(canvas, vw * 0.06, farY + toNear * vh * 0.44, vh * 0.075, 0.28,
-          envO, up);
+          fO, up);
       _drawFire(canvas, vw * 0.94, farY + toNear * vh * 0.5, vh * 0.065, 0.72,
-          envO, up);
+          fO, up);
+      if (!snow) {
+        _drawFire(canvas, vw * 0.95, farY + toNear * vh * 0.09, vh * 0.052, 0.95,
+            envO, up);
+        _drawFire(canvas, vw * 0.06, farY + toNear * vh * 0.44, vh * 0.075, 0.28,
+            envO, up);
+      }
     }
 
     // 4) Katmanlı sürüklenen pus (yatay bantlar, yavaş yanal kayar).
@@ -1568,7 +1588,9 @@ class BoardComponent extends PositionComponent with TapCallbacks {
               Offset(0, fy + fh / 2),
               [
                 const Color(0x00000000),
-                Color.fromRGBO(48, 43, 34, (0.08 - i * 0.017) * envO),
+                snow
+                    ? Color.fromRGBO(120, 132, 146, (0.07 - i * 0.014) * envO)
+                    : Color.fromRGBO(48, 43, 34, (0.08 - i * 0.017) * envO),
                 const Color(0x00000000),
               ],
               const [0.0, 0.5, 1.0],
@@ -1600,11 +1622,16 @@ class BoardComponent extends PositionComponent with TapCallbacks {
             ..shader = Gradient.linear(
               Offset(sx, baseY),
               Offset(sx, tipY),
-              [Color.fromRGBO(38, 34, 27, s.a * envO), const Color(0x00221C16)],
+              [
+                snow
+                    ? Color.fromRGBO(52, 60, 70, s.a * 0.8 * envO)
+                    : Color.fromRGBO(38, 34, 27, s.a * envO),
+                const Color(0x00221C16),
+              ],
             ),
         );
       }
-      // Ufuk boyunca alçak sürüklenen duman perdesi — degrade, blur yok.
+      // Ufuk boyunca alçak sürüklenen duman / kar sisi perdesi — degrade.
       final lowY = farY + up * vh * 0.02;
       canvas.drawRect(
         Rect.fromCenter(
@@ -1618,7 +1645,9 @@ class BoardComponent extends PositionComponent with TapCallbacks {
             Offset(0, lowY + vh * 0.08),
             [
               const Color(0x00000000),
-              Color.fromRGBO(20, 17, 13, 0.2 * envO),
+              snow
+                  ? Color.fromRGBO(90, 102, 116, 0.22 * envO)
+                  : Color.fromRGBO(20, 17, 13, 0.2 * envO),
               const Color(0x00000000),
             ],
             const [0.0, 0.5, 1.0],
@@ -1626,8 +1655,8 @@ class BoardComponent extends PositionComponent with TapCallbacks {
       );
     }
 
-    // 6) Uzak flare / patlama titremesi — nadir ısı bloomu (ışık lekesi).
-    if (_particlesOn && envO > 0.01) {
+    // 6) Uzak flare / patlama titremesi — nadir ısı bloomu (karda çizilmez).
+    if (_particlesOn && !snow && envO > 0.01) {
       for (var i = 0; i < 2; i++) {
         final pulse = math
             .pow(math.max(0.0, math.sin(_t * (0.7 + i * 0.3) + i * 3.0)), 12)
@@ -1642,7 +1671,7 @@ class BoardComponent extends PositionComponent with TapCallbacks {
       }
     }
 
-    // 7) Kül / kor zerreleri (uzak cephede yukarı süzülen ortam tozu).
+    // 7) Ortam zerreleri (uzak cephede süzülen toz / karda savrulan kar).
     if (_particlesOn) {
       _ensureMotes();
       final cycle = vh + 40;
@@ -1651,10 +1680,12 @@ class BoardComponent extends PositionComponent with TapCallbacks {
         final yy =
             (((mte.ny * cycle - _t * mte.spd) % cycle) + cycle) % cycle - 20;
         final xx = mte.nx * vw + math.sin(_t * 0.5 + mte.phase) * mte.amp;
-        moteP.color = mte.ember
-            ? Color.fromRGBO(216, 132, 66,
-                mte.a * (0.55 + 0.45 * math.sin(_t * 3 + mte.phase)))
-            : Color.fromRGBO(138, 126, 98, mte.a);
+        moteP.color = snow
+            ? Color.fromRGBO(226, 234, 242, mte.a * 0.85)
+            : mte.ember
+                ? Color.fromRGBO(216, 132, 66,
+                    mte.a * (0.55 + 0.45 * math.sin(_t * 3 + mte.phase)))
+                : Color.fromRGBO(138, 126, 98, mte.a);
         canvas.drawCircle(Offset(xx, yy), mte.r, moteP);
       }
     }
@@ -1688,24 +1719,30 @@ class BoardComponent extends PositionComponent with TapCallbacks {
   void _ensureAsh() {
     if (_ash.isNotEmpty) return;
     final rnd = math.Random(90190);
-    for (var i = 0; i < 22; i++) {
-      final ember = i % 5 == 0;
+    // Karda: daha çok, daha büyük, daha yavaş taneler; kor yok.
+    final count = snow ? 40 : 22;
+    for (var i = 0; i < count; i++) {
+      final ember = !snow && i % 5 == 0;
       _ash.add(_Mote(
         rnd.nextDouble(),
         rnd.nextDouble(),
-        ember ? 2.0 + rnd.nextDouble() * 2.4 : 1.2 + rnd.nextDouble() * 2.8,
-        7 + rnd.nextDouble() * 15, // düşme hızı (px/sn)
-        6 + rnd.nextDouble() * 18, // yanal salınım genliği
+        ember
+            ? 2.0 + rnd.nextDouble() * 2.4
+            : (snow ? 1.6 + rnd.nextDouble() * 3.4 : 1.2 + rnd.nextDouble() * 2.8),
+        (snow ? 10 : 7) + rnd.nextDouble() * (snow ? 22 : 15), // düşme hızı
+        (snow ? 10 : 6) + rnd.nextDouble() * (snow ? 26 : 18), // yanal salınım
         rnd.nextDouble() * math.pi * 2,
-        ember ? 0.3 + rnd.nextDouble() * 0.16 : 0.16 + rnd.nextDouble() * 0.14,
+        ember
+            ? 0.3 + rnd.nextDouble() * 0.16
+            : (snow ? 0.3 + rnd.nextDouble() * 0.28 : 0.16 + rnd.nextDouble() * 0.14),
         ember,
       ));
     }
   }
 
-  /// Sahanın (tahtanın + taşların) üstüne yavaşça düşen kül ve titreşen kor
-  /// zerreleri. Ekran uzayında, [render] sonunda çizilir (blur yok). "Partiküller"
-  /// ayarı kapalıysa hiç çizilmez.
+  /// Sahanın (tahtanın + taşların) üstüne yavaşça düşen kül/kor (çamur) ya da
+  /// kar taneleri. Ekran uzayında, [render] sonunda çizilir (blur yok).
+  /// "Partiküller" ayarı kapalıysa hiç çizilmez.
   void _drawAshOverlay(Canvas canvas) {
     if (!_particlesOn) return;
     final vw = size.x;
@@ -1728,7 +1765,9 @@ class BoardComponent extends PositionComponent with TapCallbacks {
           Color.fromRGBO(244, 150, 66, a.a * (0.42 + 0.5 * gl)),
         );
       } else {
-        p.color = Color.fromRGBO(166, 156, 136, a.a);
+        p.color = snow
+            ? Color.fromRGBO(238, 243, 248, a.a)
+            : Color.fromRGBO(166, 156, 136, a.a);
         canvas.drawCircle(Offset(xx, yy), a.r, p);
       }
     }
