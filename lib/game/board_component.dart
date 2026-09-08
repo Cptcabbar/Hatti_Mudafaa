@@ -753,19 +753,36 @@ class BoardComponent extends PositionComponent with TapCallbacks {
     final cell = m.cell;
     final px = (side * scale).ceil();
 
+    // Palet: çamur (varsayılan) veya kar. Alfası döngüde değişen dolgular için
+    // renk RGB üçlüsü olarak tutulur.
+    final bg0 = snow ? const Color(0xFFC9D0DA) : const Color(0xFF645644);
+    final bg1 = snow ? const Color(0xFFA6B0BC) : const Color(0xFF4A3E2E);
+    final (int, int, int) brightC =
+        snow ? (238, 244, 250) : (146, 128, 96); // rüzgârla sıkışmış kar / kuru
+    final (int, int, int) darkC =
+        snow ? (64, 72, 86) : (26, 20, 13); // sulu kar gölgesi / çamur
+    final (int, int, int) smearC =
+        snow ? (224, 231, 240) : (154, 136, 102); // kar yığını çizgisi
+    final (int, int, int) grainDk = snow ? (58, 64, 78) : (18, 14, 9);
+    final (int, int, int) grainLt = snow ? (245, 249, 252) : (158, 142, 110);
+    final (int, int, int) cratDk = snow ? (40, 48, 62) : (15, 10, 6);
+    final cratLt =
+        snow ? const Color(0x1CE8EEF4) : const Color(0x14A08A64);
+    final edgeLt = snow ? const Color(0xFFD8E0E9) : const Color(0xFFA79068);
+
     final recorder = PictureRecorder();
     final c = Canvas(recorder);
     c.scale(scale);
     final rnd = math.Random(20260906);
 
-    // 1) Islak toprak taban degradesi.
+    // 1) Taban degradesi (çamur / kar).
     c.drawRect(
       Rect.fromLTWH(0, 0, side, side),
       Paint()
         ..shader = Gradient.linear(
           Offset.zero,
           Offset(0, side),
-          const [Color(0xFF645644), Color(0xFF4A3E2E)],
+          [bg0, bg1],
         ),
     );
 
@@ -775,21 +792,26 @@ class BoardComponent extends PositionComponent with TapCallbacks {
         Offset(rnd.nextDouble() * side, rnd.nextDouble() * side),
         cell * (0.7 + rnd.nextDouble() * 1.4),
         Paint()
-          ..color = Color.fromRGBO(146, 128, 96, 0.05 + rnd.nextDouble() * 0.06)
+          ..color = Color.fromRGBO(brightC.$1, brightC.$2, brightC.$3,
+              0.05 + rnd.nextDouble() * 0.06)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 22),
       );
     }
-    // 2b) Geniş koyu çamur birikintileri.
-    for (var i = 0; i < 40; i++) {
+    // 2b) Geniş koyu çamur / sulu kar birikintileri. Karda daha az + daha soluk
+    //     (parlak zeminde büyük koyu lekeler ağır durur; hafif "kirli kar").
+    final blotchN = snow ? 16 : 40;
+    final blotchA = snow ? 0.045 : 0.11;
+    for (var i = 0; i < blotchN; i++) {
       c.drawCircle(
         Offset(rnd.nextDouble() * side, rnd.nextDouble() * side),
-        cell * (0.25 + rnd.nextDouble() * 0.9),
+        cell * (0.25 + rnd.nextDouble() * (snow ? 0.7 : 0.9)),
         Paint()
-          ..color = Color.fromRGBO(26, 20, 13, 0.07 + rnd.nextDouble() * 0.11)
+          ..color = Color.fromRGBO(darkC.$1, darkC.$2, darkC.$3,
+              0.07 + rnd.nextDouble() * blotchA)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
       );
     }
-    // Açık kuru toz smear'ları.
+    // Açık kuru toz / kar yığını smear'ları.
     for (var i = 0; i < 18; i++) {
       c
         ..save()
@@ -802,23 +824,25 @@ class BoardComponent extends PositionComponent with TapCallbacks {
             height: cell * (0.10 + rnd.nextDouble() * 0.22),
           ),
           Paint()
-            ..color =
-                Color.fromRGBO(154, 136, 102, 0.04 + rnd.nextDouble() * 0.05)
+            ..color = Color.fromRGBO(smearC.$1, smearC.$2, smearC.$3,
+                0.04 + rnd.nextDouble() * 0.05)
             ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9),
         )
         ..restore();
     }
 
-    // 3) Grain — ufak taş / is benekleri.
+    // 3) Grain — ufak taş / is / kırağı benekleri.
     for (var i = 0; i < 2400; i++) {
-      final dark = rnd.nextInt(3) != 0;
+      final dk = rnd.nextInt(3) != 0;
       c.drawCircle(
         Offset(rnd.nextDouble() * side, rnd.nextDouble() * side),
         0.6 + rnd.nextDouble() * 1.7,
         Paint()
-          ..color = dark
-              ? Color.fromRGBO(18, 14, 9, 0.06 + rnd.nextDouble() * 0.20)
-              : Color.fromRGBO(158, 142, 110, 0.05 + rnd.nextDouble() * 0.12),
+          ..color = dk
+              ? Color.fromRGBO(grainDk.$1, grainDk.$2, grainDk.$3,
+                  0.06 + rnd.nextDouble() * 0.20)
+              : Color.fromRGBO(grainLt.$1, grainLt.$2, grainLt.$3,
+                  0.05 + rnd.nextDouble() * 0.12),
       );
     }
 
@@ -839,31 +863,34 @@ class BoardComponent extends PositionComponent with TapCallbacks {
           p + off,
           rad * (0.55 + cr.nextDouble() * 0.5),
           Paint()
-            ..color = Color.fromRGBO(15, 10, 6, 0.14 + cr.nextDouble() * 0.12)
+            ..color = Color.fromRGBO(cratDk.$1, cratDk.$2, cratDk.$3,
+                0.14 + cr.nextDouble() * 0.12)
             ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
         );
       }
-      // Saçılmış toprak (kraterin bir yanında hafif açık).
+      // Saçılmış toprak / kar (kraterin bir yanında hafif açık).
       c.drawCircle(
         p + Offset(rad * 0.6, -rad * 0.5),
         rad * 0.7,
         Paint()
-          ..color = const Color(0x14A08A64)
+          ..color = cratLt
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9),
       );
     }
 
     // 5) Hedef sektörleri (üst = mavi P1 hedefi, alt = kırmızı P2 hedefi).
-    _bakeSector(
-        c, Rect.fromLTWH(0, 0, side, cell), const Color(0xFF3E6E9E), atTop: true);
+    _bakeSector(c, Rect.fromLTWH(0, 0, side, cell), const Color(0xFF3E6E9E),
+        atTop: true, snow: snow);
     _bakeSector(c, Rect.fromLTWH(0, side - cell, side, cell),
         const Color(0xFFA2433B),
-        atTop: false);
+        atTop: false, snow: snow);
 
     // 6) Yıpranmış ızgara.
     for (var i = 0; i <= n; i++) {
-      _wornGridLine(c, Offset(i * cell, 0), Offset(i * cell, side), rnd);
-      _wornGridLine(c, Offset(0, i * cell), Offset(side, i * cell), rnd);
+      _wornGridLine(c, Offset(i * cell, 0), Offset(i * cell, side), rnd,
+          snow: snow);
+      _wornGridLine(c, Offset(0, i * cell), Offset(side, i * cell), rnd,
+          snow: snow);
     }
 
     // 7) İç sınır — parapet (siper duvarı) gölgesi + kenar dudağı ışığı.
@@ -881,7 +908,7 @@ class BoardComponent extends PositionComponent with TapCallbacks {
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2
-          ..color = const Color(0x59140D08),
+          ..color = snow ? const Color(0x44424852) : const Color(0x59140D08),
       );
     // Üst ve alt siper kenarında hafif yakalanan ışık.
     for (final atTop in const [true, false]) {
@@ -892,7 +919,7 @@ class BoardComponent extends PositionComponent with TapCallbacks {
           ..shader = Gradient.linear(
             Offset(0, atTop ? 0 : side),
             Offset(0, atTop ? cell * 0.5 : side - cell * 0.5),
-            const [Color(0x1FA79068), Color(0x00A79068)],
+            [edgeLt.withValues(alpha: 0.12), edgeLt.withValues(alpha: 0)],
           ),
       );
     }
@@ -902,15 +929,23 @@ class BoardComponent extends PositionComponent with TapCallbacks {
     picture.dispose();
   }
 
-  void _bakeSector(Canvas c, Rect r, Color color, {required bool atTop}) {
-    c.drawRect(r, Paint()..color = color.withValues(alpha: 0.17));
+  void _bakeSector(
+    Canvas c,
+    Rect r,
+    Color color, {
+    required bool atTop,
+    bool snow = false,
+  }) {
+    // Kar zemininde bölge işareti biraz daha güçlü (parlak zemine karşı okunmalı).
+    c.drawRect(
+        r, Paint()..color = color.withValues(alpha: snow ? 0.22 : 0.17));
 
     // Çapraz tehlike şeritleri.
     c
       ..save()
       ..clipRect(r);
     final stripe = Paint()
-      ..color = color.withValues(alpha: 0.09)
+      ..color = color.withValues(alpha: snow ? 0.12 : 0.09)
       ..strokeWidth = r.height * 0.34;
     for (var x = -r.height; x < r.width + r.height; x += r.height * 0.9) {
       c.drawLine(
@@ -924,7 +959,7 @@ class BoardComponent extends PositionComponent with TapCallbacks {
     // Hedef kenarında şablon (stencil) kesikli çizgi.
     final y = atTop ? r.bottom - 2.5 : r.top + 2.5;
     final dash = Paint()
-      ..color = color.withValues(alpha: 0.7)
+      ..color = color.withValues(alpha: snow ? 0.85 : 0.7)
       ..strokeWidth = 4
       ..strokeCap = StrokeCap.square;
     const segs = 26;
@@ -934,16 +969,22 @@ class BoardComponent extends PositionComponent with TapCallbacks {
     }
   }
 
-  void _wornGridLine(Canvas c, Offset a, Offset b, math.Random rnd) {
+  void _wornGridLine(
+    Canvas c,
+    Offset a,
+    Offset b,
+    math.Random rnd, {
+    bool snow = false,
+  }) {
     const segs = 12;
     final dark = Paint()
       ..strokeCap = StrokeCap.round
       ..strokeWidth = 2.2
-      ..color = const Color(0xA32A2118);
+      ..color = snow ? const Color(0x7A78828F) : const Color(0xA32A2118);
     final lip = Paint()
       ..strokeCap = StrokeCap.round
       ..strokeWidth = 1
-      ..color = const Color(0x30837155);
+      ..color = snow ? const Color(0x3CEAF0F6) : const Color(0x30837155);
     for (var s = 0; s < segs; s++) {
       if (rnd.nextDouble() < 0.10) continue;
       Offset j() => Offset(
@@ -2232,6 +2273,21 @@ class BoardComponent extends PositionComponent with TapCallbacks {
           ..strokeCap = StrokeCap.round
           ..color = const Color(0x9EF3ECDC),
       );
+
+    // 3a) Karlı arazide miğfer tepesine oturmuş ince kar tozu.
+    if (snow) {
+      canvas.drawArc(
+        domeRect.deflate(rh * 0.08),
+        math.pi * 1.1 + (us < 0 ? math.pi : 0.0),
+        math.pi * 0.78,
+        false,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = rh * 0.14
+          ..strokeCap = StrokeCap.round
+          ..color = const Color(0xD2EEF3F8),
+      );
+    }
 
     // 3b) Miğfere sürülmüş soluk tanım boyası bandı — tek belirgin ayırt edici
     //     unsur (aynı biçim, yalnızca renk). Görünür kubbenin ortasında yatay,
