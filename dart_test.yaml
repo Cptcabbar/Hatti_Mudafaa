@@ -1,0 +1,5 @@
+# Test etiketleri.
+#   tool — gerçek test değil, marka varlığı üreteci (test/tool/).
+#          CI ve normal koşular atlar:  flutter test --exclude-tags tool
+tags:
+  tool:

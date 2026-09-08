@@ -64,7 +64,7 @@ Kilitlenen kararlar: Flutter+Flame · Supabase · Quoridor-türevi mekanik + tam
 - [ ] **⚖️ (Önerilir) Marka başvurusu değerlendirildi** — seçilen isim için sınıf 9 + 28; en azından "başvurulacak" kararı ve bütçesi netleşti
 - [ ] **⚖️ Alan adı + sosyal medya + geliştirici hesap adları** özgün isimle rezerve edildi
 - [x] Flutter projesi + `packages/game_core` + `packages/game_ai` (saf Dart) iskeleti kuruldu — `game_core`'da GameConfig/Square/Edge/Barrier/Move/BoardState + 23 test geçiyor
-- [x] CI kuruldu (`.github/workflows/ci.yml` — `dart analyze` + `dart test` + `flutter test`), strict lint kuralları
+- [x] CI kuruldu (`.github/workflows/ci.yml` — `dart analyze` + `dart test` + `flutter test`; ayrıca `build-android` her push/PR, `build-ios` main+elle), strict lint kuralları
 - [x] Klasör iskeleti (`lib/game`, `lib/ui`, `lib/online`, `lib/ads`, `lib/theme`) — her biri README'li
 - [x] Git deposu başlatıldı, ilk commit (`main` dalı)
 - [x] **⚖️ Tema bible taslağı** — `docs/theme-bible.md`: jenerik askeri (gerçek savaş/ordu/ülke temsili yok), low-poly render → 2B, palet + öğeler + üretim hattı; **Gigamic'in görsel dili referans alınmadı**
@@ -117,6 +117,7 @@ Kilitlenen kararlar: Flutter+Flame · Supabase · Quoridor-türevi mekanik + tam
 - [~] **⚖️ Tek tema** — placeholder renk paleti (`docs/theme-bible.md` §3); özgün varlıklar sonra
 - [~] Geri alma (undo) — çalışıyor; onay diyaloğu henüz yok
 - [x] Dokunma etkileşimi: mod düğmeleri (Hareket / Mayın·1 / Tel·2), tahta dokunması → hamle/önizleme
+- [x] **Android + iOS platform hazırlığı** (`docs/platform-build.md`): portre kilidi (manifest + Info.plist), koyu açılış (native_splash, sistem teması fark etmez), **özgün amblem ikonu** (`lib/ui/brand_mark.dart` → adaptif Android + iOS + web; iki karşıt rütbe şevronu + çentikli cephe hattı), release imza iskeleti (`key.properties` fallback→debug), iOS `PrivacyInfo.xcprivacy` + `ITSAppUsesNonExemptEncryption=false`, `minSdk 24`. CI'da `build-android` (her push) + `build-ios` (main + elle) native derlemeyi doğruluyor
 - [ ] **Çıkış kriteri:** iki kişi aynı cihazda kurallara uygun tam oyun oynuyor *(oynanış + hot-seat düzeni + süre tamam; kalan: animasyon + özgün görseller + ayarlar ekranı)*
 
 ---

@@ -1,0 +1,18 @@
+# Mağaza (release) imza anahtarı yapılandırması.
+#
+# 1. Bu dosyayı "key.properties" olarak kopyala (uzantısız değil — tam ad).
+# 2. Bir keystore üret (JDK'nın keytool'u ile):
+#
+#      keytool -genkey -v -keystore ~/hatti-mudafaa-upload.jks \
+#        -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+#
+# 3. Aşağıdaki değerleri doldur. key.properties ve *.jks GIT'E GİRMEZ
+#    (android/.gitignore).
+# 4. Anahtarı ve şifreleri güvenli bir yerde yedekle — kaybedersen aynı
+#    uygulamayı bir daha güncelleyemezsin (Play App Signing kullanılmıyorsa).
+
+storePassword=DEGISTIR
+keyPassword=DEGISTIR
+keyAlias=upload
+# storeFile: key.properties'e göre göreli ya da mutlak yol.
+storeFile=hatti-mudafaa-upload.jks

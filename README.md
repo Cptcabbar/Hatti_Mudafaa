@@ -21,9 +21,13 @@ Faz 0 (temeller). İlerleme: [ROADMAP.md](ROADMAP.md).
 | `docs/rules.md` | Oyun kuralları spesifikasyonu (canonical) |
 | `docs/theme-bible.md` | Görsel/işitsel yön (jenerik askeri, low-poly) |
 | `docs/legal-clearance.md` | Telif/marka uyum kayıt defteri |
+| `docs/platform-build.md` | Android/iOS derleme, imzalama, ikon+splash üretimi |
 
-Hedef platformlar: **Android + iOS**. `web/` yalnızca geliştirme/test kolaylığı
-(`flutter run -d chrome`), henüz bir yayın hedefi kararı değil.
+Hedef platformlar: **Android + iOS**. `android/` ve `ios/` yapılandırıldı
+(portre kilidi, koyu açılış, özgün ikon, imza iskeleti); native derleme **CI**
+ile doğrulanır — bu makinede Android SDK / Mac yok. `web/` geliştirme/önizleme
+kolaylığı (`flutter run -d chrome`), henüz bir yayın hedefi kararı değil.
+Ayrıntı: [docs/platform-build.md](docs/platform-build.md).
 
 ## Geliştirme
 

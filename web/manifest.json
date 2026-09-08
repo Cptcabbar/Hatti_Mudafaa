@@ -1,11 +1,11 @@
 {
-    "name": "hatti_mudafaa",
-    "short_name": "hatti_mudafaa",
+    "name": "Hattı Müdafaa",
+    "short_name": "Hattı Müdafaa",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0E0C08",
+    "theme_color": "#0E0C08",
+    "description": "Sıra tabanlı cephe hattı strateji oyunu — piyonunu karşı hatta ulaştır, rakibin yolunu mayın ve dikenli telle uzat.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
