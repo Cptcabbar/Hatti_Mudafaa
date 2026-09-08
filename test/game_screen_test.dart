@@ -33,4 +33,20 @@ void main() {
     expect(find.text('Döndür'), findsOneWidget);
     expect(find.text('Onayla'), findsOneWidget);
   });
+
+  testWidgets('çıkış "×" önce onay ister; Vazgeç ekranda tutar', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: GameScreen(timed: false)));
+    await settleScene(tester);
+
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(find.text('Oyundan çık'), findsOneWidget);
+
+    await tester.tap(find.text('Vazgeç'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(find.text('Oyundan çık'), findsNothing);
+    expect(find.text('Mavi oynuyor'), findsOneWidget); // hâlâ oyunda
+  });
 }

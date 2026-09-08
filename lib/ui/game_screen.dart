@@ -112,17 +112,55 @@ class _GameScreenState extends State<GameScreen> {
 
   static String playerName(Player p) => p == Player.p1 ? 'Mavi' : 'Kırmızı';
 
+  /// Oyundan çıkış — hem köşedeki "×" hem sistem geri hareketi buradan geçer.
+  /// Oyun sürüyorsa önce onay ister (yanlışlıkla tahtaya dokunup çıkmayı önler).
+  Future<void> _confirmAndExit() async {
+    if (!mounted || _dialogOpen) return;
+    if (controller.isOver) {
+      Navigator.of(context).pop();
+      return;
+    }
+    _dialogOpen = true;
+    final leave = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Oyundan çık'),
+        content: const Text(
+          'Şu anki oyun kaybolacak. Çıkmak istediğine emin misin?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Vazgeç'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Çık'),
+          ),
+        ],
+      ),
+    );
+    _dialogOpen = false;
+    if (leave == true && mounted) Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          SafeArea(child: _buildGame()),
-          if (!_sceneReady)
-            const Positioned.fill(
-              child: LoadingView(message: 'Cephe hazırlanıyor'),
-            ),
-        ],
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _confirmAndExit();
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            SafeArea(child: _buildGame()),
+            if (!_sceneReady)
+              const Positioned.fill(
+                child: LoadingView(message: 'Cephe hazırlanıyor'),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -143,16 +181,22 @@ class _GameScreenState extends State<GameScreen> {
             padding: const EdgeInsets.all(8),
             child: ClipRect(child: GameWidget(game: game)),
           ),
+          // Köşede küçük çıkış "×" — eskiden sol-orta'daydı ve telefonda
+          // tahtanın üstüne denk gelip oyuncular hamle yaparken oyundan
+          // çıkıyordu. Artık köşede + onay diyaloğu arkasında.
           Positioned(
             left: 4,
-            top: 0,
-            bottom: 0,
-            child: Center(
-              child: IconButton.filledTonal(
-                tooltip: 'Çıkış',
-                onPressed: () => Navigator.of(context).maybePop(),
-                icon: const Icon(Icons.close),
+            top: 4,
+            child: IconButton.filledTonal(
+              tooltip: 'Çıkış',
+              iconSize: 18,
+              visualDensity: VisualDensity.compact,
+              style: IconButton.styleFrom(
+                backgroundColor: AppPalette.surface.withValues(alpha: 0.72),
+                foregroundColor: AppPalette.text,
               ),
+              onPressed: _confirmAndExit,
+              icon: const Icon(Icons.close),
             ),
           ),
           if (widget.timed)
