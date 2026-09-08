@@ -4,6 +4,7 @@ import 'package:game_ai/game_ai.dart';
 import 'package:game_core/game_core.dart';
 
 import '../audio/game_music.dart';
+import '../audio/game_sfx.dart';
 import '../settings.dart';
 import 'app_theme.dart';
 import 'ash_fall.dart';
@@ -18,6 +19,7 @@ class HomeScreen extends StatelessWidget {
 
   void _openSettings(BuildContext context) {
     GameMusic.instance.nudge();
+    GameSfx.instance.uiGear();
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: ThemeBackdrop.base,
@@ -28,6 +30,7 @@ class HomeScreen extends StatelessWidget {
 
   void _openHowToPlay(BuildContext context) {
     GameMusic.instance.nudge();
+    GameSfx.instance.uiPaper();
     Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (context) => const HowToPlayScreen()),
     );
@@ -116,6 +119,7 @@ class _PlayButton extends StatelessWidget {
 
   void _startLocalGame(BuildContext context) {
     GameMusic.instance.nudge();
+    GameSfx.instance.gameStart();
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (context) =>
@@ -264,6 +268,7 @@ class _WideTwoPlayerButton extends StatelessWidget {
 
   void _start(BuildContext context) {
     GameMusic.instance.nudge();
+    GameSfx.instance.gameStart();
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (context) => GameScreen(
@@ -360,6 +365,7 @@ class _AiButton extends StatelessWidget {
 
   void _start(BuildContext context) {
     GameMusic.instance.nudge();
+    GameSfx.instance.gameStart();
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (context) => GameScreen(
@@ -602,6 +608,11 @@ class _TimedToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final timed = AppSettings.instance.timed;
+    void set(bool v) {
+      GameSfx.instance.uiSwitch();
+      timed.value = v;
+    }
+
     return ValueListenableBuilder<bool>(
       valueListenable: timed,
       builder: (context, value, _) => Material(
@@ -609,7 +620,7 @@ class _TimedToggle extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
         child: InkWell(
           borderRadius: BorderRadius.circular(4),
-          onTap: () => timed.value = !value,
+          onTap: () => set(!value),
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(4),
@@ -635,7 +646,7 @@ class _TimedToggle extends StatelessWidget {
                 const SizedBox(width: 6),
                 Switch(
                   value: value,
-                  onChanged: (v) => timed.value = v,
+                  onChanged: set,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
               ],
@@ -717,7 +728,10 @@ class _SettingRow extends StatelessWidget {
       valueListenable: notifier,
       builder: (context, value, _) => SwitchListTile(
         value: value,
-        onChanged: (v) => notifier.value = v,
+        onChanged: (v) {
+          GameSfx.instance.uiSwitch();
+          notifier.value = v;
+        },
         secondary: Icon(icon, color: AppPalette.text),
         title: Text(
           label,
