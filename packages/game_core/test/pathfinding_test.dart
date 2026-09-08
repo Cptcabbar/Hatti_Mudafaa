@@ -33,6 +33,44 @@ void main() {
     });
   });
 
+  group('Pathfinding.shortestPathToRow', () {
+    test('boş tahta: d1 → 7. satır, 7 kare (d1..d7), her adım ortogonal', () {
+      final s = buildState();
+      final path = Pathfinding.shortestPathToRow(s, Square.parse('d1'), 6);
+      expect(path, isNotNull);
+      expect(path!.first, Square.parse('d1'));
+      expect(path.last.row, 6);
+      expect(path.length, 7);
+      for (var i = 1; i < path.length; i++) {
+        expect(path[i - 1].isOrthogonalNeighbor(path[i]), isTrue);
+        expect(s.isEdgeBlocked(path[i - 1], path[i]), isFalse);
+      }
+    });
+
+    test('zaten hedef satırdaysa tek elemanlı yol', () {
+      final s = buildState();
+      expect(
+        Pathfinding.shortestPathToRow(s, Square.parse('a7'), 6),
+        [Square.parse('a7')],
+      );
+    });
+
+    test('yolu tıkalı kare → null', () {
+      final s = buildState(barriers: ['Mb2h', 'Mb1h', 'Mb2v', 'Ma2v']);
+      expect(
+        Pathfinding.shortestPathToRow(s, Square.parse('b2'), 6),
+        isNull,
+      );
+    });
+
+    test('uzunluk her zaman shortestDistanceToRow + 1', () {
+      final s = buildState(barriers: ['Md1h']);
+      final d = Pathfinding.shortestDistanceToRow(s, Square.parse('d1'), 6)!;
+      final path = Pathfinding.shortestPathToRow(s, Square.parse('d1'), 6)!;
+      expect(path.length, d + 1);
+    });
+  });
+
   group('Pathfinding.hasPathToRow', () {
     test('boş tahta: her iki askerin de yolu var', () {
       final s = buildState();
