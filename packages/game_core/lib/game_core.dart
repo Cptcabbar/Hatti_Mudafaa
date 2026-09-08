@@ -10,5 +10,6 @@ export 'src/config.dart';
 export 'src/coord.dart';
 export 'src/move.dart';
 export 'src/notation.dart';
+export 'src/obstacles.dart';
 export 'src/pathfinding.dart';
 export 'src/rules.dart';

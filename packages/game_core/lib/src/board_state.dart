@@ -26,15 +26,23 @@ class BoardState {
     required this.turn,
     required this.armoryP1,
     required this.armoryP2,
+    Set<Square> obstacles = const {},
     this.ply = 0,
     this.winner,
   })  : barriers = List.unmodifiable(barriers),
+        obstacles = Set.unmodifiable(obstacles),
         _blockedEdges = _indexBlockedEdges(barriers);
 
   final GameConfig config;
   final Square pawnP1;
   final Square pawnP2;
   final List<Barrier> barriers;
+
+  /// Kare-kapatan engeller (ör. Geniş Arazi ağaçları) — `docs/rules.md` §2.1.
+  /// Oyun boyunca sabittir; asker bu karelere giremez/atlayamaz, BFS onları
+  /// duvar sayar.
+  final Set<Square> obstacles;
+
   final Player turn;
   final int armoryP1;
   final int armoryP2;
@@ -47,8 +55,12 @@ class BoardState {
 
   final Set<Edge> _blockedEdges;
 
-  /// Standart başlangıç durumu.
-  factory BoardState.initial([GameConfig config = GameConfig.v1]) {
+  /// Standart başlangıç durumu. [obstacles] verilirse kare-kapatan engellerle
+  /// (§2.1) başlar — üretimi çağıranın sorumluluğunda (`ObstacleField.roll`).
+  factory BoardState.initial([
+    GameConfig config = GameConfig.v1,
+    Set<Square> obstacles = const {},
+  ]) {
     return BoardState(
       config: config,
       pawnP1: config.startP1,
@@ -57,6 +69,7 @@ class BoardState {
       turn: Player.p1,
       armoryP1: config.armoryPoints,
       armoryP2: config.armoryPoints,
+      obstacles: obstacles,
     );
   }
 
@@ -81,6 +94,9 @@ class BoardState {
   bool isEdgeBlocked(Square a, Square b) =>
       _blockedEdges.contains(Edge.between(a, b));
 
+  /// [s] karesi kare-kapatan bir engel mi (§2.1) — asker giremez, BFS duvar.
+  bool isObstacle(Square s) => obstacles.contains(s);
+
   /// [barrier]'ın kapatacağı kenarlardan en az biri zaten kapalı mı?
   /// (`docs/rules.md` §5.3/2 — çakışma yasağı)
   bool overlapsExistingBarrier(Barrier barrier) =>
@@ -104,6 +120,8 @@ class BoardState {
       turn: turn ?? this.turn,
       armoryP1: armoryP1 ?? this.armoryP1,
       armoryP2: armoryP2 ?? this.armoryP2,
+      // Engel kareleri oyun içinde değişmez — her zaman korunur.
+      obstacles: obstacles,
       ply: ply ?? this.ply,
       winner: winner ?? this.winner,
     );
@@ -114,6 +132,8 @@ class BoardState {
         'pawnP1': pawnP1.toString(),
         'pawnP2': pawnP2.toString(),
         'barriers': barriers.map((b) => b.toNotation()).toList(),
+        if (obstacles.isNotEmpty)
+          'obstacles': obstacles.map((s) => s.toString()).toList(),
         'turn': turn.name,
         'armoryP1': armoryP1,
         'armoryP2': armoryP2,
@@ -130,6 +150,9 @@ class BoardState {
       barriers: (json['barriers'] as List<dynamic>)
           .map((s) => Barrier.parse(s as String))
           .toList(),
+      obstacles: ((json['obstacles'] as List<dynamic>?) ?? const [])
+          .map((s) => Square.parse(s as String))
+          .toSet(),
       turn: Player.values.byName(json['turn'] as String),
       armoryP1: json['armoryP1'] as int,
       armoryP2: json['armoryP2'] as int,
@@ -142,5 +165,6 @@ class BoardState {
   String toString() =>
       'BoardState(ply:$ply turn:${turn.name} p1:$pawnP1 p2:$pawnP2 '
       'armory:$armoryP1/$armoryP2 barriers:${barriers.length}'
+      '${obstacles.isEmpty ? '' : ' obstacles:${obstacles.length}'}'
       '${winner != null ? ' winner:${winner!.name}' : ''})';
 }

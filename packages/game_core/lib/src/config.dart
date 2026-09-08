@@ -13,6 +13,8 @@ class GameConfig {
     this.wireCost = 2,
     this.startP1 = const Square(3, 0), // d1
     this.startP2 = const Square(3, 6), // d7
+    this.obstacleCountMin = 0,
+    this.obstacleCountMax = 0,
   });
 
   /// Kare tahtanın kenar uzunluğu (kare sayısı).
@@ -33,8 +35,24 @@ class GameConfig {
   /// Oyuncu 2 (Kırmızı) başlangıç karesi. Hedefi: en alt satır.
   final Square startP2;
 
-  /// v1 varsayılan yapılandırması (7×7, 8 puan).
+  /// Oyun başında konan kare-kapatan engel (`docs/rules.md` §2.1) sayısının
+  /// alt/üst sınırı. `0/0` → engel karesi yok (v1). Üretim `ObstacleField.roll`.
+  final int obstacleCountMin;
+  final int obstacleCountMax;
+
+  /// v1 varsayılan yapılandırması (7×7, 8 puan, engel karesi yok).
   static const GameConfig v1 = GameConfig();
+
+  /// "Geniş Arazi" — 9×9, oyuncu başına 11 puan, `e1`/`e9` başlangıç, oyun
+  /// başında 2–4 rastgele ağaç (§2.1). Arayüzde karlı savaş alanı teması.
+  static const GameConfig wideTerrain = GameConfig(
+    boardSize: 9,
+    armoryPoints: 11,
+    startP1: Square(4, 0), // e1
+    startP2: Square(4, 8), // e9
+    obstacleCountMin: 2,
+    obstacleCountMax: 4,
+  );
 
   /// Bir engel tipinin maliyeti.
   int costOf(bool isWire) => isWire ? wireCost : mineCost;
@@ -54,6 +72,8 @@ class GameConfig {
     int? wireCost,
     Square? startP1,
     Square? startP2,
+    int? obstacleCountMin,
+    int? obstacleCountMax,
   }) {
     return GameConfig(
       boardSize: boardSize ?? this.boardSize,
@@ -62,6 +82,8 @@ class GameConfig {
       wireCost: wireCost ?? this.wireCost,
       startP1: startP1 ?? this.startP1,
       startP2: startP2 ?? this.startP2,
+      obstacleCountMin: obstacleCountMin ?? this.obstacleCountMin,
+      obstacleCountMax: obstacleCountMax ?? this.obstacleCountMax,
     );
   }
 
@@ -72,6 +94,8 @@ class GameConfig {
         'wireCost': wireCost,
         'startP1': startP1.toString(),
         'startP2': startP2.toString(),
+        'obstacleCountMin': obstacleCountMin,
+        'obstacleCountMax': obstacleCountMax,
       };
 
   factory GameConfig.fromJson(Map<String, dynamic> json) => GameConfig(
@@ -81,5 +105,7 @@ class GameConfig {
         wireCost: json['wireCost'] as int,
         startP1: Square.parse(json['startP1'] as String),
         startP2: Square.parse(json['startP2'] as String),
+        obstacleCountMin: json['obstacleCountMin'] as int? ?? 0,
+        obstacleCountMax: json['obstacleCountMax'] as int? ?? 0,
       );
 }

@@ -6,9 +6,9 @@ import 'coord.dart';
 /// Tahta üzerinde en kısa yol / erişilebilirlik hesapları.
 ///
 /// `docs/rules.md` §5.3/4 "yol kapatma yasağı" ve `game_ai` değerlendirme
-/// fonksiyonu buna dayanır. Grafik yalnızca **statik engelleri** dikkate alır;
-/// rakip asker (atlama) hesaba katılmaz — piyonlar yoldan çekilebilir, engeller
-/// kalıcıdır.
+/// fonksiyonu buna dayanır. Grafik yalnızca **statik engelleri** dikkate alır:
+/// kenar kapatan mayın/tel **ve** kare kapatan engeller (§2.1). Rakip asker
+/// (atlama) hesaba katılmaz — piyonlar yoldan çekilebilir, engeller kalıcıdır.
 abstract final class Pathfinding {
   /// [from] karesinden [goalRow] satırındaki herhangi bir kareye giden en kısa
   /// yolun adım sayısı; yol yoksa `null`.
@@ -39,6 +39,7 @@ abstract final class Pathfinding {
         }
         if (visited[next.col][next.row]) continue;
         if (state.isEdgeBlocked(sq, next)) continue;
+        if (state.isObstacle(next)) continue;
         if (next.row == goalRow) return nextDist;
         visited[next.col][next.row] = true;
         queue.add(next);
@@ -82,6 +83,7 @@ abstract final class Pathfinding {
         }
         if (visited[next.col][next.row]) continue;
         if (state.isEdgeBlocked(sq, next)) continue;
+        if (state.isObstacle(next)) continue;
         prev[next] = sq;
         if (next.row == goalRow) {
           final path = <Square>[next];
@@ -121,6 +123,7 @@ abstract final class Pathfinding {
         }
         if (visited[next.col][next.row]) continue;
         if (state.isEdgeBlocked(sq, next)) continue;
+        if (state.isObstacle(next)) continue;
         if (next.row == goalRow) return true;
         visited[next.col][next.row] = true;
         stack.add(next);

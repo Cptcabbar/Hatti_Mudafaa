@@ -38,6 +38,8 @@ abstract final class Rules {
       final adj = from.step(dir);
       if (!inBounds(adj)) continue;
       if (state.isEdgeBlocked(from, adj)) continue;
+      // Engel karesine (§2.1) girilemez — rakip de orada duramaz, tümden atla.
+      if (state.isObstacle(adj)) continue;
 
       if (adj != opp) {
         moves.add(StepMove(adj));
@@ -46,7 +48,9 @@ abstract final class Rules {
 
       // Rakip komşu karede — atlama (§4.2).
       final beyond = adj.step(dir);
-      final straightOpen = inBounds(beyond) && !state.isEdgeBlocked(adj, beyond);
+      final straightOpen = inBounds(beyond) &&
+          !state.isEdgeBlocked(adj, beyond) &&
+          !state.isObstacle(beyond);
       if (straightOpen) {
         moves.add(StepMove(beyond));
         continue;
@@ -56,6 +60,7 @@ abstract final class Rules {
         final diag = adj.step(perp);
         if (!inBounds(diag)) continue;
         if (state.isEdgeBlocked(adj, diag)) continue;
+        if (state.isObstacle(diag)) continue;
         moves.add(StepMove(diag));
       }
     }

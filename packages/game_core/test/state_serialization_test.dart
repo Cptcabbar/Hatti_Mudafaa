@@ -21,6 +21,28 @@ void main() {
       expect(back.startP1, c.startP1);
     });
 
+    test('wideTerrain: docs/rules.md §8 ile uyumlu + JSON round-trip', () {
+      const c = GameConfig.wideTerrain;
+      expect(c.boardSize, 9);
+      expect(c.armoryPoints, 11);
+      expect(c.startP1, Square.parse('e1'));
+      expect(c.startP2, Square.parse('e9'));
+      expect(c.obstacleCountMin, 2);
+      expect(c.obstacleCountMax, 4);
+      final back = GameConfig.fromJson(c.toJson());
+      expect(back.obstacleCountMin, 2);
+      expect(back.obstacleCountMax, 4);
+    });
+
+    test('eski JSON (obstacleCount alanı yok) → 0 varsayar', () {
+      final json = GameConfig.v1.toJson()
+        ..remove('obstacleCountMin')
+        ..remove('obstacleCountMax');
+      final back = GameConfig.fromJson(json);
+      expect(back.obstacleCountMin, 0);
+      expect(back.obstacleCountMax, 0);
+    });
+
     test('sınır kontrolleri', () {
       const c = GameConfig.v1;
       expect(c.isSquareInBounds(Square.parse('a1')), isTrue);
@@ -71,6 +93,24 @@ void main() {
       expect(back.armoryP1, 6);
       expect(back.ply, 3);
       expect(back.isEdgeBlocked(Square.parse('c3'), Square.parse('c4')), isTrue);
+    });
+
+    test('engel kareleri: initial + copyWith korur + JSON round-trip', () {
+      final obstacles = {Square.parse('c4'), Square.parse('f5')};
+      final s = BoardState.initial(GameConfig.wideTerrain, obstacles);
+      expect(s.isObstacle(Square.parse('c4')), isTrue);
+      // copyWith engel karelerini korur (oyun içinde değişmez)
+      final moved = s.copyWith(pawnP1: Square.parse('e2'), turn: Player.p2);
+      expect(moved.obstacles, equals(obstacles));
+      // JSON round-trip
+      final back = BoardState.fromJson(s.toJson());
+      expect(back.obstacles, equals(obstacles));
+    });
+
+    test('eski JSON (obstacles alanı yok) → boş küme', () {
+      final json = BoardState.initial().toJson();
+      expect(json.containsKey('obstacles'), isFalse); // boşsa yazılmaz
+      expect(BoardState.fromJson(json).obstacles, isEmpty);
     });
   });
 

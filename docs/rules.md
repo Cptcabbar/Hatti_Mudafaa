@@ -30,6 +30,26 @@ Yol tamamen kapatılamaz — rakibe her zaman en az bir geçiş bırakılmak zor
 - **Oyuncu 2 (Kırmızı)** başlangıç: `d7`. Hedef: **1. satırdaki herhangi bir kare**.
 - İlk hamleyi **Oyuncu 1** yapar.
 
+> Yukarıdaki değerler v1 (7×7) içindir. Tahta boyutu ve başlangıç kareleri
+> `GameConfig`'ten gelir; farklı arazi tiplerinde değişebilir (bkz. §2.1, §8).
+
+### 2.1 Engel kareleri (arazi tipine bağlı, opsiyonel)
+
+Bazı arazi tipleri oyun başında tahtaya **kare kapatan engeller** yerleştirir
+(ör. "Geniş Arazi" modundaki ağaçlar). Kenar kapatan mayın/telden (bkz. §5)
+farklıdırlar: bir **kareyi tamamen** kapatırlar.
+
+- Bir asker engel karesine **giremez** ve üzerinden **atlayamaz** (o kare, atlama
+  ve çapraz atlama hesabında yok sayılır).
+- "Yol kapatma yasağı" (§5.3/4) BFS'i engel karelerini **duvar** kabul eder.
+- Engel kareleri oyun boyunca **sabittir** — konmaz, kaldırılmaz, taşınmaz.
+- **Yerleşim kuralı:** her oyuncunun **hedef satırına** ve onun **bir önündeki
+  satıra** engel karesi konmaz; başlangıç karelerine konmaz; her kare
+  benzersizdir; yerleştirme sonrası **iki asker de** hedefine ulaşabilir
+  (aksi halde o aday elenir). Adet `GameConfig.obstacleCountMin..Max` aralığında
+  rastgeledir; `game_core` bunları tek yerden üretir (`ObstacleField.roll`).
+- v1 (7×7) arazisinde engel karesi **yoktur** (`obstacleCountMin/Max = 0`).
+
 ---
 
 ## 3. Bir turda yapılabilecekler
@@ -137,8 +157,16 @@ Kompakt, metin tabanlı; tekrar oynatma ve online senkron için.
 | `mineCost` | 1 | |
 | `wireCost` | 2 | |
 | `startP1` / `startP2` | `d1` / `d7` | Ana sıra ortası |
+| `obstacleCountMin` / `obstacleCountMax` | 0 / 0 | Oyun başında konan engel karesi (§2.1) sayı aralığı |
 
 > Playtest sonrası ilk beklenen ayar: 7×7'de 8 puan yoğun gelirse `armoryPoints` → 6.
+
+### Adlandırılmış arazi tipleri
+
+| Config | boardSize | armoryPoints | start | engel karesi |
+|---|---|---|---|---|
+| `GameConfig.v1` | 7 | 8 | `d1` / `d7` | yok |
+| `GameConfig.wideTerrain` ("Geniş Arazi") | 9 | 11 | `e1` / `e9` | 2–4 ağaç (§2.1) |
 
 ---
 
