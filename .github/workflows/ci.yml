@@ -43,7 +43,8 @@ jobs:
         # tool etiketli dosyalar varlık üretecidir (test/tool/), CI'da atlanır.
         run: flutter test --exclude-tags tool
 
-  # Android derlemesi her push/PR'da — platform (Gradle + eklentiler + AOT) kırılmasını yakalar.
+  # Android — her push'ta (ubuntu ucuz/hızlı): platform kırılmasını yakalar +
+  # her zaman güncel bir APK/AAB "Artifacts"ta hazır bekler.
   build-android:
     runs-on: ubuntu-latest
     needs: analyze-and-test
@@ -64,24 +65,30 @@ jobs:
 
       # key.properties yok → app/debug.keystore ile imzalanır (sabit test
       # imzası). Release yolu (tree-shake + AOT) tam derlenir.
-      - name: flutter build apk --release
+      - name: APK (yan yükleme / test)
         run: flutter build apk --release
 
-      # İndirilebilir APK — Actions çalışmasının "Artifacts" bölümünden alınır,
-      # test cihazlarına yan yüklenir / paylaşılır.
-      - name: APK'yı yükle
+      - name: AAB (Play Store)
+        run: flutter build appbundle --release
+
+      - name: Paketleri yükle
         uses: actions/upload-artifact@v4
         with:
-          name: hatti-mudafaa-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: hatti-mudafaa-android
+          path: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/bundle/release/app-release.aab
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 90
 
-  # iOS derlemesi yalnız main'e push + elle tetik (macOS runner 10x dakika çarpanı).
+  # iOS — YALNIZCA elle tetik (Actions → CI → "Run workflow"). macOS runner'ı
+  # 10x dakika yediği için gereksiz yere çalışmaz. İmzasız IPA üretir:
+  # gerçek cihaza kurmak için Sideloadly / AltStore (Apple ID ile yeniden
+  # imzalar) ya da Mac + Apple Developer hesabı gerekir (bkz. docs/platform-build.md).
   build-ios:
     runs-on: macos-latest
     needs: analyze-and-test
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
 
@@ -94,3 +101,19 @@ jobs:
 
       - name: flutter build ios --release --no-codesign
         run: flutter build ios --release --no-codesign
+
+      - name: İmzasız IPA paketle
+        run: |
+          cd build/ios/iphoneos
+          mkdir -p Payload
+          cp -R Runner.app Payload/
+          zip -qry hatti-mudafaa-unsigned.ipa Payload
+          ls -lh hatti-mudafaa-unsigned.ipa
+
+      - name: IPA'yı yükle
+        uses: actions/upload-artifact@v4
+        with:
+          name: hatti-mudafaa-ios-unsigned
+          path: build/ios/iphoneos/hatti-mudafaa-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 90

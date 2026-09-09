@@ -6,21 +6,39 @@ ve marka varlıklarının nasıl üretildiğini anlatır.
 
 > **Bu geliştirme makinesi:** Android SDK yok, Mac yok. Native derlemeler
 > **CI** üzerinden yapılır/doğrulanır (`.github/workflows/ci.yml`):
-> - `build-android` — her push/PR, `flutter build apk --release` (Linux);
->   çıktı APK'sı **artifact** olarak yüklenir.
-> - `build-ios` — yalnız `main`'e push + elle tetik, `flutter build ios
->   --release --no-codesign` (macOS runner).
+> - `analyze-and-test` — her push/PR: `dart analyze` + 3 test seti.
+> - `build-android` — her push (Linux, ucuz): `flutter build apk` **ve**
+>   `flutter build appbundle` → `hatti-mudafaa-android` artifact'ı (APK + AAB,
+>   90 gün). Her push'ta güncel bir paket hazır bekler.
+> - `build-ios` — **yalnızca elle tetik** (macOS runner 10x dakika çarpanı):
+>   `flutter build ios --release --no-codesign` → imzasız IPA
+>   (`hatti-mudafaa-ios-unsigned`, 90 gün).
 
-## Test APK'sı (yan yükleme)
+## Android paketi çekme (APK / AAB)
 
-1. GitHub → **Actions** → en son `CI` çalışması → `build-android` job'ı.
-2. Sayfanın altındaki **Artifacts → `hatti-mudafaa-apk`** indir (zip; içinde
-   `app-release.apk`).
-3. APK'yı test cihazına gönder (mesaj / drive / kablo) → aç → "bilinmeyen
-   kaynaklara izin ver" → kur.
-4. APK `android/app/debug.keystore` ile imzalıdır (sabit test anahtarı) —
-   her CI derlemesi aynı imza, yani yeni sürümü **kaldırmadan** güncelleyebilirsin.
-   Bu Play Store anahtarı **değildir**.
+1. GitHub → **Actions** → en son yeşil `CI` çalışması → `build-android` job'ı.
+2. Sayfanın altındaki **Artifacts → `hatti-mudafaa-android`** indir (zip; içinde
+   `app-release.apk` + `app-release.aab`).
+3. **APK** → test cihazına gönder → aç → "bilinmeyen kaynaklara izin ver" → kur.
+   `android/app/debug.keystore` ile imzalı (sabit test anahtarı) — her CI
+   derlemesi aynı imza, yani yeni sürümü **kaldırmadan** güncellersin.
+   Play Store anahtarı **değildir**.
+4. **AAB** → Play Console'a yüklenir (Play App Signing yeniden imzalar).
+
+## iOS paketi çekme (imzasız IPA)
+
+1. GitHub → **Actions** → sol menüde **CI** → sağ üstte **Run workflow** →
+   dalı `main` seç → **Run workflow**. (macOS runner ~15 dk.)
+2. Çalışma bitince → `build-ios` job'ı → **Artifacts → `hatti-mudafaa-ios-unsigned`**.
+3. Bu IPA **imzasızdır** — doğrudan iPhone'a kurulmaz. Seçenekler:
+   - **Sideloadly** / **AltStore** (ücretsiz): kendi Apple ID'nle yeniden
+     imzalar, 7 günde bir yenilemek gerekir. Hızlı test için yeterli.
+   - **Mac + Apple Developer hesabı** ($99/yıl): Xcode'da imzalı `.ipa` +
+     TestFlight / App Store (aşağıya bak).
+4. Kod/pbxproj kırılması burada da doğrulanır (native derleme gerçekten geçti mi).
+
+> **Not:** `audioplayers` eklentisi (ses hattı) native Android + iOS kodu taşır.
+> CI derlemesi bunu kapsar; ilk iOS derlemesinde `pod install` adımına dikkat.
 
 ---
 
@@ -107,13 +125,14 @@ flutter build apk --release           # yan yükleme / test
 | `ITSAppUsesNonExemptEncryption` | `false` | `Info.plist` |
 | Privacy manifest | `Runner/PrivacyInfo.xcprivacy` (izleme yok, veri yok) | Runner hedefi (Resources) |
 
-### Derleme — yalnız CI (bu projede Mac yok)
+### Derleme — CI'da elle tetik (bu projede Mac yok)
 
-`build-ios` job'ı `flutter build ios --release --no-codesign` çalıştırır;
-`project.pbxproj` / privacy manifest / storyboard değişikliklerini burada
-doğrula.
+Actions → **CI** → **Run workflow** → `build-ios` job'ı
+`flutter build ios --release --no-codesign` çalıştırıp imzasız IPA'yı artifact
+yapar (yukarı bak). `project.pbxproj` / privacy manifest / storyboard / native
+eklenti (`audioplayers`) kırılması burada yakalanır.
 
-**Mac erişilince** (App Store'a yükleme için gerekir):
+**Mac erişilince** (App Store'a / imzalı kuruluma):
 
 ```sh
 cd ios && pod install && cd ..
