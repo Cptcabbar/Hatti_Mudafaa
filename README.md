@@ -1,57 +1,55 @@
 # Hattı Müdafaa
 
-Sıra tabanlı strateji oyunu — mayınlı bir savaş alanında askerini karşı kenara
-ulaştır. Quoridor mekaniğinden esinlenen, kendi temasına ve kurallarına sahip
-özgün bir yapım. Android + iOS (Flutter + Flame).
+Mayınlı bir savaş alanında askerini karşı kenara ulaştırmaya çalıştığın, sıra tabanlı bir strateji oyunu. Quoridor'un "rakibinin yolunu engelle" fikrinden ilham aldım, ama kendi temam, kendi kurallarım ve kendi görsel dilimle baştan kurdum. Android ve iOS için Flutter + Flame ile geliştiriliyor.
 
-> Marka taraması hâlâ yapılacak (`docs/legal-clearance.md`); uluslararası pazar için
-> Latin harfli / İngilizce ad kararı beklemede.
+İsim henüz kesinleşmedi: Türkiye mağazasında "Hattı Müdafaa" olarak gidiyor, uluslararası pazar için Latin harfli / İngilizce bir isim üzerinde çalışıyorum ve marka taraması hâlâ sürüyor (detaylar `docs/legal-clearance.md`'de).
 
-## Durum
+## Nerede durduğu
 
-Faz 0 (temeller). İlerleme: [ROADMAP.md](ROADMAP.md).
+Şu an Faz 2'deyiz: aynı cihazda iki kişilik yerel oyun tamam, yapay zeka rakibi de üç zorluk seviyesiyle oynanabilir durumda. Sırada reklam/mağaza hazırlığı, ardından online mod var. Güncel ilerleme: `ROADMAP.md`.
 
-## Yapı
+## Proje yapısı
 
 | Yol | İçerik |
 |---|---|
 | `lib/` | Flutter uygulaması — `game/` (Flame), `ui/`, `online/`, `ads/`, `theme/` |
-| `packages/game_core/` | Saf Dart kural motoru. Tek doğruluk kaynağı: `docs/rules.md` |
-| `packages/game_ai/` | Yapay zeka rakip (Faz 2) |
-| `docs/rules.md` | Oyun kuralları spesifikasyonu (canonical) |
-| `docs/theme-bible.md` | Görsel/işitsel yön (jenerik askeri, low-poly) |
+| `packages/game_core/` | Saf Dart kural motoru. Kuralların tek doğruluk kaynağı: `docs/rules.md` |
+| `packages/game_ai/` | Yapay zeka rakibi |
+| `docs/rules.md` | Oyun kuralları spesifikasyonu |
+| `docs/theme-bible.md` | Görsel/işitsel yön (jenerik askeri tema, low-poly) |
 | `docs/legal-clearance.md` | Telif/marka uyum kayıt defteri |
 | `docs/platform-build.md` | Android/iOS derleme, imzalama, ikon+splash üretimi |
 
-Hedef platformlar: **Android + iOS**. `android/` ve `ios/` yapılandırıldı
-(portre kilidi, koyu açılış, özgün ikon, imza iskeleti); native derleme **CI**
-ile doğrulanır — bu makinede Android SDK / Mac yok. `web/` geliştirme/önizleme
-kolaylığı (`flutter run -d chrome`), henüz bir yayın hedefi kararı değil.
-Ayrıntı: [docs/platform-build.md](docs/platform-build.md).
+Hedef platformlar Android ve iOS. `android/` ve `ios/` klasörleri buna göre yapılandırıldı (portre kilidi, koyu açılış ekranı, özgün ikon, imza iskeleti); native derlemeler CI üzerinden doğrulanıyor. `web/` klasörü şu an sadece geliştirme sırasında tarayıcıda önizleme yapmak için (`flutter run -d chrome`) — ayrı bir yayın hedefi olarak henüz planlanmıyor. Detaylar: `docs/platform-build.md`.
 
-## Geliştirme
+## Geliştirmeye başlamak
 
-```sh
+```
 flutter pub get
 dart pub get -C packages/game_core
 dart pub get -C packages/game_ai
+```
 
-dart analyze                       # kök + lib/ + test/
+Analiz ve testler:
+
+```
+dart analyze
 dart analyze packages/game_core
 dart analyze packages/game_ai
 
 (cd packages/game_core && dart test)
 (cd packages/game_ai && dart test)
 flutter test
+```
 
+Çalıştırmak için:
+
+```
 flutter run
 ```
 
-> Not: bu makinede `flutter analyze` sarmalayıcısı ortam kaynaklı çöküyor
-> (`FormatException`); `dart analyze` aynı `analysis_options.yaml`'ı kullanır ve
-> sorunsuz çalışır. CI `dart analyze` kullanır.
+(CI `dart analyze` kullanıyor; `flutter analyze` bazı ortamlarda sorun çıkarabiliyor, `dart analyze` aynı `analysis_options.yaml`'ı kullanıp sorunsuz çalışıyor.)
 
 ## Lisans / telif notu
 
-Oyun mekaniği ve kuralları telif hakkıyla korunmaz; bu proje "Quoridor" ismini,
-görsellerini veya kural metnini kullanmaz. Ayrıntı: `docs/legal-clearance.md`.
+Oyunun mekaniği ve kuralları telif hakkıyla korunmaz; bu proje "Quoridor" adını, görsellerini ya da kural metnini kullanmıyor — kurallar sıfırdan yazıldı. Detaylar: `docs/legal-clearance.md`.
