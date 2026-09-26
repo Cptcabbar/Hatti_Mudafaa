@@ -3,8 +3,16 @@ name: CI
 on:
   push:
     branches: [main]
+    # Sadece doküman değişen commit'lerde CI çalışmasın.
+    paths-ignore: ['**.md', 'docs/**']
   pull_request:
+    paths-ignore: ['**.md', 'docs/**']
   workflow_dispatch:
+
+# Aynı branch'e yeni push gelince eski çalışma iptal edilir (dakika tasarrufu).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   analyze-and-test:
@@ -43,8 +51,8 @@ jobs:
         # tool etiketli dosyalar varlık üretecidir (test/tool/), CI'da atlanır.
         run: flutter test --exclude-tags tool
 
-  # Android — her push'ta (ubuntu ucuz/hızlı): platform kırılmasını yakalar +
-  # her zaman güncel bir APK/AAB "Artifacts"ta hazır bekler.
+  # Android — her push'ta APK (kısa süre saklanır, storage kotası dolmasın).
+  # AAB (Play Store) yalnızca elle tetikte üretilir.
   build-android:
     runs-on: ubuntu-latest
     needs: analyze-and-test
@@ -68,18 +76,26 @@ jobs:
       - name: APK (yan yükleme / test)
         run: flutter build apk --release
 
-      - name: AAB (Play Store)
-        run: flutter build appbundle --release
-
-      - name: Paketleri yükle
+      - name: APK'yı yükle
         uses: actions/upload-artifact@v4
         with:
-          name: hatti-mudafaa-android
-          path: |
-            build/app/outputs/flutter-apk/app-release.apk
-            build/app/outputs/bundle/release/app-release.aab
+          name: hatti-mudafaa-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
-          retention-days: 90
+          retention-days: 3
+
+      - name: AAB (Play Store) — yalnızca elle tetik
+        if: github.event_name == 'workflow_dispatch'
+        run: flutter build appbundle --release
+
+      - name: AAB'yi yükle
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: hatti-mudafaa-aab
+          path: build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 7
 
   # iOS — YALNIZCA elle tetik (Actions → CI → "Run workflow"). macOS runner'ı
   # 10x dakika yediği için gereksiz yere çalışmaz. İmzasız IPA üretir:
@@ -116,4 +132,4 @@ jobs:
           name: hatti-mudafaa-ios-unsigned
           path: build/ios/iphoneos/hatti-mudafaa-unsigned.ipa
           if-no-files-found: error
-          retention-days: 90
+          retention-days: 7
